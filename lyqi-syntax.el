@@ -138,95 +138,212 @@
                 :initform 1)))
 (defclass lyqi:no-duration-lexeme (lyqi:base-duration-lexeme) ())
 
+;;; forms
+(defclass lyqi:form (lyqi:parser-symbol) ())
+(defclass lyqi:verbatim-form (lyqi:form) ())
+(defclass lyqi:music-form (lyqi:form)
+  ((duration :initarg :duration
+             :initform nil
+             :accessor lyqi:duration-of)))
+
+(defclass lyqi:simple-note-form (lyqi:music-form)
+  ((rest :initarg :rest
+         :initform nil)))
+(defclass lyqi:rest-skip-etc-form (lyqi:music-form) ())
+(defclass lyqi:chord-form (lyqi:music-form) ())
+(defclass lyqi:incomplete-chord-form (lyqi:form) ())
+
+(defclass lyqi:line-comment-form (lyqi:form) ())
+
 ;;;
 ;;; Lexer
 ;;;
 
+;;; lexer states
 (defclass lyqi:lexer-state () ())
 (defclass lyqi:lexer-toplevel-state (lyqi:lexer-state) ())
 (defvar lyqi:*lexer-toplevel-state* (make-instance 'lyqi:lexer-toplevel-state))
 (defclass lyqi:lexer-duration?-state (lyqi:lexer-state) ())
 (defvar lyqi:*lexer-duration?-state* (make-instance 'lyqi:lexer-duration?-state))
+(defclass lyqi:lexer-note-duration?-state (lyqi:lexer-state) ())
+(defvar lyqi:*lexer-note-duration?-state* (make-instance 'lyqi:lexer-note-duration?-state))
+(defclass lyqi:lexer-note-rest?-state (lyqi:lexer-state) ())
+(defvar lyqi:*lexer-note-rest?-state* (make-instance 'lyqi:lexer-note-rest?-state))
 (defclass lyqi:lexer-incomplete-chord-state (lyqi:lexer-state) ())
 (defvar lyqi:*lexer-incomplete-chord-state* (make-instance 'lyqi:lexer-incomplete-chord-state))
+(defclass lyqi:lexer-line-comment-state (lyqi:lexer-state) ())
+(defvar lyqi:*lexer-line-comment-state* (make-instance 'lyqi:lexer-line-comment-state))
 
-(defgeneric lyqi:lex (lexer-state syntax)
-  "If a lexeme can be found after point, return two values: a
-lexeme and the new lexer state. Advance point at the end of the
-returned lexeme.  Otherwise, return NIL.")
-
-(defun lyqi:lex-line (syntax)
-  (loop for current-state = lyqi:*lexer-toplevel-state* then new-state
-        for (lexeme new-state) = (lyqi:lex current-state syntax)
-        while lexeme
-        collect lexeme into result
+;;; lex/parse functions
+(defun lyqi:parse-line (syntax)
+  (loop for (new-state form non-reduced-lexemes next-form-class)
+        = (lyqi:lex lyqi:*lexer-toplevel-state* nil nil syntax)
+        then (lyqi:lex new-state non-reduced-lexemes next-form-class syntax)
+        if form collect form into result
+        while new-state
         finally return result))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-toplevel-state) syntax)
+(defgeneric lyqi:lex (lexer-state non-reduced-lexemes next-form-class syntax)
+  "If a lexeme can be found after point, return four values:
+- the new lexer state, or NIL at end of line;
+- a form of type `next-form-class', or NIL if lexemes do not reduce yet;
+- a list of lexemes, not yet reduced (possibly NIL);
+- the class name of the next form (to be used when lexemes are reduced).
+Advance point at the end of the returned lexeme.")
+
+(defmethod lyqi:lex ((lexer lyqi:lexer-toplevel-state)
+                     non-reduced-lexemes next-form-class syntax)
   "Lexing in toplevel-state:
  note | rest | mm-rest | skip | space -> duration?-state
  '<' -> incomplete-chord-state
  other tokens -> toplevel-state"
-  (lyqi:skip-whitespace)
-  (unless (eolp)
-    (cond (;; a note
-           (looking-at (slot-value syntax 'note-regex))
-           (values (lyqi:lex-note syntax) lyqi:*lexer-duration?-state*))
-          ;; rest, mm-rest, skip or spacer
-          ((looking-at (slot-value syntax 'rest-skip-regex))
-           (values (lyqi:lex-rest-skip-etc syntax) lyqi:*lexer-duration?-state*))
-          ;; a chord start: '<'
-          ((looking-at "<\\([^<]\\|$\\)")
-           (let ((start (point)))
-             (forward-char 1)
-             (values (make-instance 'lyqi:chord-start-lexeme
-                                    :start-point start
-                                    :end-point (point))
-                     lyqi:*lexer-incomplete-chord-state*)))
-          ;; other top level expression are treated as verbatim
-          (t (values (lyqi:lex-verbatim syntax)
-                     lyqi:*lexer-toplevel-state*)))))
+  (labels ((reduce-lexemes ()
+            (when non-reduced-lexemes
+              (let ((last-lexeme (first non-reduced-lexemes))
+                    (verbatim-lexemes (nreverse non-reduced-lexemes)))
+                (make-instance 'lyqi:verbatim-form
+                               :start-point (slot-value (first verbatim-lexemes) 'start-point)
+                               :end-point (slot-value last-lexeme 'end-point)
+                               :children verbatim-lexemes)))))
+    (lyqi:skip-whitespace)
+    (if (not (eolp))
+        (cond (;; a note
+               (looking-at (slot-value syntax 'note-regex))
+               (values lyqi:*lexer-note-duration?-state*
+                       (reduce-lexemes)
+                       (list (lyqi:lex-note syntax))
+                       'lyqi:simple-note-form))
+              ;; rest, mm-rest, skip or spacer
+              ((looking-at (slot-value syntax 'rest-skip-regex))
+               (values lyqi:*lexer-duration?-state*
+                       (reduce-lexemes)
+                       (list (lyqi:lex-rest-skip-etc syntax))
+                       'lyqi:rest-skip-etc-form))
+              ;; a chord start: '<'
+              ((looking-at "<\\([^<]\\|$\\)")
+               (let ((start (point)))
+                 (forward-char 1)
+                 (values lyqi:*lexer-incomplete-chord-state*
+                         (reduce-lexemes)
+                         (list (make-instance 'lyqi:chord-start-lexeme
+                                              :start-point start
+                                              :end-point (point)))
+                         'lyqi:chord-form)))
+              ;; a line comment
+              ((looking-at "%[^}].*$")
+               (let ((start (point)))
+                 (lyqi:forward-match)
+                 (values nil
+                         (make-instance 'lyqi:line-comment-form
+                                        :start-point start
+                                        :end-point (point))
+                         nil
+                         nil)))
+              ;; other top level expressions are treated as verbatim
+              (t (values lyqi:*lexer-toplevel-state*
+                         nil
+                         (cons (lyqi:lex-verbatim syntax) non-reduced-lexemes)
+                         'lyqi:verbatim-form)))
+        ;; reduce remaining lexemes
+        (values nil (reduce-lexemes) nil nil))))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-duration?-state) syntax)
+(defmethod lyqi:lex ((lexer lyqi:lexer-duration?-state)
+                     non-reduced-lexemes next-form-class syntax)
   "Lexing in duration?-state:
 duration | no-duration -> toplevel-state"
-  (values (if (and (not (eolp))
-                   (looking-at (slot-value syntax 'duration-regex)))
-              (lyqi:lex-duration syntax)
-              (make-instance 'lyqi:no-duration-lexeme
-                             :start-point (point)
-                             :end-point (point)))
-          lyqi:*lexer-toplevel-state*))
+  (let* ((duration-lexeme (lyqi:lex-duration syntax))
+         (all-lexemes (nreverse (cons duration-lexeme non-reduced-lexemes)))
+         (first-lexeme (first all-lexemes)))
+    (values lyqi:*lexer-toplevel-state*
+            (make-instance next-form-class
+                           :start-point (slot-value first-lexeme 'start-point)
+                           :end-point (slot-value duration-lexeme 'end-point)
+                           :children all-lexemes
+                           :duration duration-lexeme)
+            nil
+            nil)))
 
+(defmethod lyqi:lex ((lexer lyqi:lexer-note-duration?-state)
+                     non-reduced-lexemes next-form-class syntax)
+  (values lyqi:*lexer-note-rest?-state*
+          nil
+          (cons (lyqi:lex-duration syntax) non-reduced-lexemes)
+          next-form-class))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state) syntax)
+(defmethod lyqi:lex ((lexer lyqi:lexer-note-rest?-state)
+                     non-reduced-lexemes next-form-class syntax)
+  (lyqi:skip-whitespace)
+  (let* ((duration (first non-reduced-lexemes))
+         (point (point))
+         (rest-lexeme (when (looking-at "\\\\rest")
+                        (lyqi:forward-match)
+                        (make-instance 'lyqi:verbatim-lexeme
+                                       :start-point point
+                                       :end-point (point))))
+         (all-lexemes (nreverse (if rest-lexeme
+                                    (cons rest-lexeme non-reduced-lexemes)
+                                    non-reduced-lexemes)))
+         (last-lexeme (or rest-lexeme duration))
+         (first-lexeme (first all-lexemes)))
+    (values lyqi:*lexer-toplevel-state*
+            (make-instance next-form-class
+                           :start-point (slot-value first-lexeme 'start-point)
+                           :end-point (slot-value last-lexeme 'end-point)
+                           :children all-lexemes
+                           :duration duration
+                           :rest (not (not rest-lexeme)))
+            nil
+            nil)))
+
+(defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state)
+                     non-reduced-lexemes next-form-class syntax)
   "Lexing in incomplete-chord-state:
  '>' -> duration?-state
  note | other tokens -> incomplete-chord-state"
   (lyqi:skip-whitespace)
-  (unless (eolp)
-    (cond ((looking-at (slot-value syntax 'note-regex)) ;; a note
-           (values (lyqi:lex-note syntax) lyqi:*lexer-incomplete-chord-state*))
-          ((eql (char-after) ?\>) ;; a chord end: '>'
-           (let ((start (point)))
-             (forward-char 1)
-             (values (make-instance 'lyqi:chord-end-lexeme
-                                   :start-point start
-                                   :end-point (point))
-                    lyqi:*lexer-duration?-state*)))
-          (t ;; something else
-           (values (lyqi:lex-verbatim syntax)
-                   lyqi:lexer-incomplete-chord-state)))))
+  (if (not (eolp))
+      (cond ((looking-at (slot-value syntax 'note-regex)) ;; a note
+             (values lyqi:*lexer-incomplete-chord-state*
+                     nil
+                     (cons (lyqi:lex-note syntax) non-reduced-lexemes)
+                     next-form-class))
+            ((eql (char-after) ?\>) ;; a chord end: '>'
+             (let ((start (point)))
+               (forward-char 1)
+               (values lyqi:*lexer-duration?-state*
+                       nil
+                       (cons (make-instance 'lyqi:chord-end-lexeme
+                                            :start-point start
+                                            :end-point (point))
+                             non-reduced-lexemes)
+                       next-form-class)))
+            (t ;; something else
+             (values lyqi:*lexer-incomplete-chord-state*
+                     nil
+                     (cons (lyqi:lex-verbatim syntax "[^ >]+") non-reduced-lexemes)
+                     next-form-class)))
+      ;; reduce remaining lexemes
+      (when non-reduced-lexemes
+        (let ((children (nreverse non-reduced-lexemes)))
+          (values nil
+                  (make-instance 'lyqi:incomplete-chord-form
+                                 :start-point (slot-value (first children) 'start-point)
+                                 :end-point (point)
+                                 :children children)
+                  nil
+                  nil)))))
 
+;;;
 ;;; specific lexing functions
+;;;
 
 (defun lyqi:skip-whitespace ()
   (when (looking-at "\\s-+")
     (lyqi:forward-match)))
 
-(defun lyqi:lex-verbatim (syntax)
+(defun lyqi:lex-verbatim (syntax &optional verbatim-regex)
   (let ((start (point)))
-    (looking-at "\\S-+")
+    (looking-at (or verbatim-regex "\\S-+"))
     (lyqi:forward-match)
     (make-instance 'lyqi:verbatim-lexeme
                            :start-point start
@@ -279,139 +396,46 @@ duration | no-duration -> toplevel-state"
                    :start-point start :end-point end)))
 
 (defun lyqi:lex-duration (syntax)
-  (let ((length 2)
-        (dot-count 0)
-        (num 1)
-        (den 1)
-        (start (point)))
-    (when (looking-at (slot-value syntax 'duration-length-regex))
-      ;; length
-      (setf length (cdr (assoc (match-string-no-properties 0)
-                                  (slot-value syntax 'duration-data))))
-      (lyqi:forward-match)
-      ;; dots
-      (when (and (not (eolp))
-                 (looking-at "\\.+"))
-        (setf dot-count (- (match-end 0) (match-beginning 0)))
-        (lyqi:forward-match))
-      ;; numerator
-      (when (and (not (eolp))
-                 (looking-at "\\*\\([0-9]+\\)"))
-        (setf num (string-to-number (match-string-no-properties 1)))
-        (lyqi:forward-match)
-        ;; denominator
-        (when (and (not (eolp))
-                   (looking-at "/\\([0-9]+\\)"))
-          (setf den (string-to-number (match-string-no-properties 1)))
-          (lyqi:forward-match))))
-    (make-instance 'lyqi:duration-lexeme
-                   :length length
-                   :dot-count dot-count
-                   :numerator num
-                   :denominator den
-                   :start-point start
-                   :end-point (point))))
+  (if (or (eolp)
+          (not (looking-at (slot-value syntax 'duration-regex))))
+      ;; implicit duration
+      (make-instance 'lyqi:no-duration-lexeme
+                     :start-point (point)
+                     :end-point (point))
+      ;; explicit duration
+      (let ((length 2)
+            (dot-count 0)
+            (num 1)
+            (den 1)
+            (start (point)))
+        (when (looking-at (slot-value syntax 'duration-length-regex))
+          ;; length
+          (setf length (cdr (assoc (match-string-no-properties 0)
+                                   (slot-value syntax 'duration-data))))
+          (lyqi:forward-match)
+          ;; dots
+          (when (and (not (eolp))
+                     (looking-at "\\.+"))
+            (setf dot-count (- (match-end 0) (match-beginning 0)))
+            (lyqi:forward-match))
+          ;; numerator
+          (when (and (not (eolp))
+                     (looking-at "\\*\\([0-9]+\\)"))
+            (setf num (string-to-number (match-string-no-properties 1)))
+            (lyqi:forward-match)
+            ;; denominator
+            (when (and (not (eolp))
+                       (looking-at "/\\([0-9]+\\)"))
+              (setf den (string-to-number (match-string-no-properties 1)))
+              (lyqi:forward-match))))
+        (make-instance 'lyqi:duration-lexeme
+                       :length length
+                       :dot-count dot-count
+                       :numerator num
+                       :denominator den
+                       :start-point start
+                       :end-point (point)))))
 
 ;;;
 ;;;
 ;;;
-
-;;;
-;;;
-;;;
-(defclass lyqi:form (lyqi:parser-symbol) ())
-(defclass lyqi:verbatim-form (lyqi:form) ())
-(defclass lyqi:music-form (lyqi:form)
-  ((duration :initarg :duration
-             :initform nil
-             :accessor lyqi:duration-of)))
-
-(defclass lyqi:simple-note-form (lyqi:music-form) ())
-(defclass lyqi:rest-skip-etc-form (lyqi:music-form) ())
-(defclass lyqi:chord-form (lyqi:music-form) ())
-(defclass lyqi:incomplete-chord-form (lyqi:form) ())
-
-(defmethod lyqi:parse-one-form ((this lyqi:note-lexeme) rest-lexemes)
-  ;; note + duration -> simple-note
-  (let ((duration (first rest-lexemes)))
-    (values (make-instance 'lyqi:simple-note-form
-                           :start-point (slot-value this 'start-point)
-                           :end-point (if duration
-                                         (slot-value duration 'end-point)
-                                         (slot-value this 'end-point))
-                           :children (list this duration)
-                           :duration duration)
-            (cdr rest-lexemes))))
-
-(defmethod lyqi:parse-one-form ((this lyqi:rest-skip-etc-lexeme) rest-lexemes)
-  ;; rest|skip|... + duration -> rest-skip-etc
-  (let ((duration (first rest-lexemes)))
-    (values (make-instance 'lyqi:rest-skip-etc-form
-                           :start-point (slot-value this 'start-point)
-                           :end-point (if duration
-                                          (slot-value duration 'end-point)
-                                          (slot-value this 'end-point))
-                           :children (list this duration)
-                           :duration duration)
-            (cdr rest-lexemes))))
-
-(defmethod lyqi:parse-one-form ((this lyqi:chord-start-lexeme) rest-lexemes)
-  ;; '<' + (note | verbatim)* + '>' + duration -> chord
-  ;; '<' + (note | verbatim)*                  -> incomplete-chord
-  (loop for lexemes on rest-lexemes
-        for lexeme = (first lexemes)
-        for rest-lexemes = (cdr lexemes)
-        collect lexeme into children
-        if (object-of-class-p lexeme 'lyqi:base-duration-lexeme)
-        return (values (make-instance 'lyqi:chord-form
-                                      :start-point (slot-value this 'start-point)
-                                      :end-point (slot-value lexeme 'end-point)
-                                      :duration lexeme
-                                      :children (cons this children))
-                       rest-lexemes)
-        finally return (values (make-instance 'lyqi:incomplete-chord-form
-                                              :start-point (slot-value this 'start-point)
-                                              :end-point (slot-value lexeme 'end-point)
-                                              :children (cons this children))
-                               rest-lexemes)))
-
-(defmethod lyqi:parse-one-form ((this lyqi:lexeme) rest-lexemes)
-  ;; default rule:
-  ;; anything + verbatim* -> verbatim
-  (destructuring-bind (children last rest)
-      (loop for lexemes on rest-lexemes
-            with last-child = this
-            for lexeme = (first lexemes)
-            if (object-of-class-p lexeme 'lyqi:verbatim-lexeme)
-            collect lexeme into children and do (setf last-child lexeme)
-            else return (list children last-child lexemes)
-            finally return (list children last-child lexemes))
-    (princ (format "first: %s\nlast: %s\nrest: %s\n"
-                   this last (car rest)))
-    (values (make-instance 'lyqi:verbatim-form
-                           :start-point (slot-value this 'start-point)
-                           :end-point (slot-value last 'end-point)
-                           :children (cons this children))
-            rest)))
-
-(defun lyqi:parse-all-forms (lexemes acc)
-  (if lexemes
-      (multiple-value-bind (form rest) (lyqi:parse-one-form (first lexemes) (rest lexemes))
-        (if form
-            (progn
-              (princ (format "Parsed %s\n " (object-class form)))
-              (mapcar (lambda (lexeme)
-                        (princ (format " %s" (object-class lexeme))))
-                      (slot-value form 'children))
-              (princ (format "\n  Next lexeme: %s\n"
-                             (if rest
-                                 (object-class (first rest))
-                                 "<eol>"))))
-            (princ "no form...\n"))
-        (lyqi:parse-all-forms rest (if form
-                                       (cons form acc)
-                                       acc)))
-      (nreverse acc)))
-
-(defun lyqi:parse-line (syntax)
-  (lyqi:parse-all-forms (lyqi:lex-line syntax) (list)))
