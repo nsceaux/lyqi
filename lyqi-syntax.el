@@ -97,10 +97,10 @@
 ;;;
 
 (defclass lyqi:parser-symbol ()
-  ((start-point :initform nil
-                :initarg :start-point)
-   (end-point :initform nil
-              :initarg :end-point)
+  ((marker :initform nil
+                :initarg :marker)
+   (size :initform nil
+              :initarg :size)
    (children :initarg :children
              :initform nil
              :accessor lyqi:children-of)))
@@ -199,11 +199,15 @@ Advance point at the end of the returned lexeme.")
  other tokens -> toplevel-state"
   (labels ((reduce-lexemes ()
             (when non-reduced-lexemes
-              (let ((last-lexeme (first non-reduced-lexemes))
-                    (verbatim-lexemes (nreverse non-reduced-lexemes)))
+              (let* ((last-lexeme (first non-reduced-lexemes))
+                     (verbatim-lexemes (nreverse non-reduced-lexemes))
+                     (marker (slot-value (first verbatim-lexemes) 'marker))
+                     (size (- (+ (slot-value last-lexeme 'marker)
+                                 (slot-value last-lexeme 'size))
+                              marker)))
                 (make-instance 'lyqi:verbatim-form
-                               :start-point (slot-value (first verbatim-lexemes) 'start-point)
-                               :end-point (slot-value last-lexeme 'end-point)
+                               :marker marker
+                               :size size
                                :children verbatim-lexemes)))))
     (lyqi:skip-whitespace)
     (if (not (eolp))
@@ -221,22 +225,22 @@ Advance point at the end of the returned lexeme.")
                        'lyqi:rest-skip-etc-form))
               ;; a chord start: '<'
               ((looking-at "<\\([^<]\\|$\\)")
-               (let ((start (point)))
+               (let ((marker (point-marker)))
                  (forward-char 1)
                  (values lyqi:*lexer-incomplete-chord-state*
                          (reduce-lexemes)
                          (list (make-instance 'lyqi:chord-start-lexeme
-                                              :start-point start
-                                              :end-point (point)))
+                                              :marker marker
+                                              :size (- (point) marker)))
                          'lyqi:chord-form)))
               ;; a line comment
               ((looking-at "%[^}].*$")
-               (let ((start (point)))
+               (let ((marker (point-marker)))
                  (lyqi:forward-match)
                  (values nil
                          (make-instance 'lyqi:line-comment-form
-                                        :start-point start
-                                        :end-point (point))
+                                        :marker marker
+                                        :size (- (point) marker))
                          nil
                          nil)))
               ;; other top level expressions are treated as verbatim
@@ -253,11 +257,15 @@ Advance point at the end of the returned lexeme.")
 duration | no-duration -> toplevel-state"
   (let* ((duration-lexeme (lyqi:lex-duration syntax))
          (all-lexemes (nreverse (cons duration-lexeme non-reduced-lexemes)))
-         (first-lexeme (first all-lexemes)))
+         (first-lexeme (first all-lexemes))
+         (marker (slot-value first-lexeme 'marker))
+         (size (- (+ (slot-value duration-lexeme 'marker)
+                     (slot-value duration-lexeme 'size))
+                  marker)))
     (values lyqi:*lexer-toplevel-state*
             (make-instance next-form-class
-                           :start-point (slot-value first-lexeme 'start-point)
-                           :end-point (slot-value duration-lexeme 'end-point)
+                           :marker marker
+                           :size size
                            :children all-lexemes
                            :duration duration-lexeme)
             nil
@@ -274,21 +282,25 @@ duration | no-duration -> toplevel-state"
                      non-reduced-lexemes next-form-class syntax)
   (lyqi:skip-whitespace)
   (let* ((duration (first non-reduced-lexemes))
-         (point (point))
+         (marker (point-marker))
          (rest-lexeme (when (looking-at "\\\\rest")
                         (lyqi:forward-match)
                         (make-instance 'lyqi:verbatim-lexeme
-                                       :start-point point
-                                       :end-point (point))))
+                                       :marker marker
+                                       :size (- (point) marker))))
          (all-lexemes (nreverse (if rest-lexeme
                                     (cons rest-lexeme non-reduced-lexemes)
                                     non-reduced-lexemes)))
          (last-lexeme (or rest-lexeme duration))
-         (first-lexeme (first all-lexemes)))
+         (first-lexeme (first all-lexemes))
+         (first-marker (slot-value first-lexeme 'marker))
+         (size (- (+ (slot-value last-lexeme 'marker)
+                     (slot-value last-lexeme 'size))
+                  first-marker)))
     (values lyqi:*lexer-toplevel-state*
             (make-instance next-form-class
-                           :start-point (slot-value first-lexeme 'start-point)
-                           :end-point (slot-value last-lexeme 'end-point)
+                           :marker first-marker
+                           :size size
                            :children all-lexemes
                            :duration duration
                            :rest (not (not rest-lexeme)))
@@ -308,13 +320,13 @@ duration | no-duration -> toplevel-state"
                      (cons (lyqi:lex-note syntax) non-reduced-lexemes)
                      next-form-class))
             ((eql (char-after) ?\>) ;; a chord end: '>'
-             (let ((start (point)))
+             (let ((marker (point-marker)))
                (forward-char 1)
                (values lyqi:*lexer-duration?-state*
                        nil
                        (cons (make-instance 'lyqi:chord-end-lexeme
-                                            :start-point start
-                                            :end-point (point))
+                                            :marker marker
+                                            :size (- (point) marker))
                              non-reduced-lexemes)
                        next-form-class)))
             (t ;; something else
@@ -324,11 +336,12 @@ duration | no-duration -> toplevel-state"
                      next-form-class)))
       ;; reduce remaining lexemes
       (when non-reduced-lexemes
-        (let ((children (nreverse non-reduced-lexemes)))
+        (let* ((children (nreverse non-reduced-lexemes))
+               (marker (slot-value (first children) 'marker)))
           (values nil
                   (make-instance 'lyqi:incomplete-chord-form
-                                 :start-point (slot-value (first children) 'start-point)
-                                 :end-point (point)
+                                 :marker marker
+                                 :size (- (point) marker)
                                  :children children)
                   nil
                   nil)))))
@@ -342,18 +355,18 @@ duration | no-duration -> toplevel-state"
     (lyqi:forward-match)))
 
 (defun lyqi:lex-verbatim (syntax &optional verbatim-regex)
-  (let ((start (point)))
+  (let ((marker (point-marker)))
     (looking-at (or verbatim-regex "\\S-+"))
     (lyqi:forward-match)
     (make-instance 'lyqi:verbatim-lexeme
-                           :start-point start
-                           :end-point (point))))
+                           :marker marker
+                           :size (- (point) marker))))
 
 (defun lyqi:lex-note (syntax)
   (let ((pitch 0)
         (alteration 0)
         (octave-modifier 0)
-        (start (point)))
+        (marker (point-marker)))
     (when (looking-at (slot-value syntax 'pitch-regex))
       ;; pitch and alteration
       (let ((pitch-data (assoc (match-string-no-properties 0)
@@ -370,12 +383,12 @@ duration | no-duration -> toplevel-state"
                    :pitch pitch
                    :alteration alteration
                    :octave-modifier octave-modifier
-                   :start-point start
-                   :end-point (point))))
+                   :marker marker
+                   :size (- (point) marker))))
 
 (defun lyqi:lex-rest-skip-etc (syntax)
-  (let* ((start (point))
-         (end (1+ start)))
+  (let* ((marker (point-marker))
+         (size 1))
     (make-instance (cond ((looking-at "r")
                           (forward-char 1)
                           'lyqi:rest-lexeme)
@@ -390,24 +403,24 @@ duration | no-duration -> toplevel-state"
                           'lyqi:chord-repetition-lexeme)
                          ((looking-at "\\\\skip")
                           (lyqi:forward-match)
-                          (setf end (point))
+                          (setf size (- (point) marker))
                           (lyqi:skip-whitespace)
                           'lyqi:skip-lexeme))
-                   :start-point start :end-point end)))
+                   :marker marker :size size)))
 
 (defun lyqi:lex-duration (syntax)
   (if (or (eolp)
           (not (looking-at (slot-value syntax 'duration-regex))))
       ;; implicit duration
       (make-instance 'lyqi:no-duration-lexeme
-                     :start-point (point)
-                     :end-point (point))
+                     :marker (point-marker)
+                     :size 0)
       ;; explicit duration
       (let ((length 2)
             (dot-count 0)
             (num 1)
             (den 1)
-            (start (point)))
+            (marker (point-marker)))
         (when (looking-at (slot-value syntax 'duration-length-regex))
           ;; length
           (setf length (cdr (assoc (match-string-no-properties 0)
@@ -433,8 +446,8 @@ duration | no-duration -> toplevel-state"
                        :dot-count dot-count
                        :numerator num
                        :denominator den
-                       :start-point start
-                       :end-point (point)))))
+                       :marker marker
+                       :size (- (point) marker)))))
 
 ;;;
 ;;;
