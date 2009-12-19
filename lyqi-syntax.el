@@ -142,7 +142,12 @@
                 :initform 1)))
 (defclass lyqi:no-duration-lexeme (lyqi:base-duration-lexeme) ())
 
+(defclass lyqi:line-comment-start-lexeme (lyqi:lexeme) ())
+(defclass lyqi:line-comment-lexeme (lyqi:lexeme) ())
+
+;;;
 ;;; forms
+;;;
 (defclass lyqi:form (lyqi:parser-symbol) ())
 (defclass lyqi:verbatim-form (lyqi:form) ())
 (defclass lyqi:music-form (lyqi:form)
@@ -158,8 +163,10 @@
 (defclass lyqi:chord-end-form (lyqi:music-form) ())
 (defclass lyqi:incomplete-chord-form (lyqi:form) ())
 
-(defclass lyqi:line-comment-form (lyqi:form) ())
+(defclass lyqi:keyword-form (lyqi:form) ())
 
+(defclass lyqi:line-comment-form (lyqi:form) ())
+(defclass lyqi:multi-line-comment-form (lyqi:form) ())
 ;;;
 ;;; Lexer
 ;;;
@@ -228,20 +235,21 @@ EOL : reduce all lexemes into a verbatim form
 note -> note lexeme, {note-duration?} state
 rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {duration?} state
 '<' -> chord-start lexeme, {incomplete-chord} state
+\\command -> command lexeme, {toplevel} state
 % ... EOL -> line comment form, {toplevel} state
 <other things> -> verbatim lexeme, {toplevel} state"
   (labels ((reduce-lexemes ()
-            (when non-reduced-lexemes
-              (let* ((last-lexeme (first non-reduced-lexemes))
-                     (verbatim-lexemes (nreverse non-reduced-lexemes))
-                     (marker (lyqi:marker (first verbatim-lexemes)))
-                     (size (- (+ (lyqi:marker last-lexeme)
-                                 (lyqi:size last-lexeme))
-                              marker)))
-                (make-instance 'lyqi:verbatim-form
-                               :marker marker
-                               :size size
-                               :children verbatim-lexemes)))))
+                           (when non-reduced-lexemes
+                             (let* ((last-lexeme (first non-reduced-lexemes))
+                                    (verbatim-lexemes (nreverse non-reduced-lexemes))
+                                    (marker (lyqi:marker (first verbatim-lexemes)))
+                                    (size (- (+ (lyqi:marker last-lexeme)
+                                                (lyqi:size last-lexeme))
+                                             marker)))
+                               (make-instance 'lyqi:verbatim-form
+                                              :marker marker
+                                              :size size
+                                              :children verbatim-lexemes)))))
     (lyqi:skip-whitespace)
     (cond ((eolp)
            ;; at end of line, reduce remaining lexemes
@@ -272,11 +280,23 @@ rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {dura
                      'lyqi:chord-form
                      t)))
           ;; a line comment
-          ((looking-at "%[^{}].*$")
+          ((looking-at "%[^{}]")
+           (let ((marker (point-marker)))
+             (looking-at "%+")
+             (lyqi:forward-match)
+             (values lyqi:*lexer-line-comment-state*
+                     nil
+                     (list (make-instance 'lyqi:line-comment-start-lexeme
+                                          :marker marker
+                                          :size (- (point) marker)))
+                     'lyqi:line-comment-form
+                     t)))
+          ;; a backslashed keyword, command or variable
+          ((looking-at "\\\\[a-zA-Z]+")
            (let ((marker (point-marker)))
              (lyqi:forward-match)
              (values lyqi:*lexer-toplevel-state*
-                     (make-instance 'lyqi:line-comment-form
+                     (make-instance 'lyqi:keyword-form
                                     :marker marker
                                     :size (- (point) marker))
                      nil
@@ -292,7 +312,7 @@ rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {dura
 
 (defmethod lyqi:lex ((lexer lyqi:lexer-duration?-state)
                      syntax non-reduced-lexemes next-form-class)
-      "Lexing in duration?-state:
+  "Lexing in duration?-state:
 duration | no-duration -> toplevel-state"
   (let* ((duration-lexeme (lyqi:lex-duration syntax))
          (all-lexemes (nreverse (cons duration-lexeme non-reduced-lexemes)))
@@ -348,6 +368,21 @@ duration | no-duration -> toplevel-state"
             nil
             nil
             t)))
+
+(defmethod lyqi:lex ((lexer lyqi:lexer-line-comment-state)
+                     syntax non-reduced-lexemes next-form-class)
+  (lyqi:skip-whitespace)
+  (let ((marker (point-marker))
+        (start-lexeme (first non-reduced-lexemes)))
+    (forward-line 0)
+    (values lyqi:*lexer-toplevel-state*
+            (make-instance 'lyqi:line-comment-form
+                           :marker (lyqi:marker start-lexeme)
+                           :size (- (point) (lyqi:marker start-lexeme))
+                           :children (list start-lexeme
+                                           (make-instance 'lyqi:line-comment-lexeme
+                                                          :marker marker
+                                                          :size (- (point) marker)))))))
 
 (defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state)
                      syntax non-reduced-lexemes next-form-class)
@@ -407,8 +442,8 @@ duration | no-duration -> toplevel-state"
     (looking-at (or verbatim-regex "\\S-+"))
     (lyqi:forward-match)
     (make-instance 'lyqi:verbatim-lexeme
-                           :marker marker
-                           :size (- (point) marker))))
+                   :marker marker
+                   :size (- (point) marker))))
 
 (defun lyqi:lex-note (syntax)
   (let ((pitch 0)

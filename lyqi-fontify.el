@@ -64,4 +64,13 @@
 (defmethod lyqi:face ((this lyqi:duration-lexeme))
   '(face lyqi:duration-face))
 
+(defmethod lyqi:face ((this lyqi:keyword-form))
+  '(face font-lock-keyword-face))
+
+(defmethod lyqi:face ((this lyqi:line-comment-start-lexeme))
+  '(face font-lock-comment-delimiter-face))
+
+(defmethod lyqi:face ((this lyqi:line-comment-lexeme))
+  '(face font-lock-comment-face))
+
 (provide 'lyqi-fontify)
