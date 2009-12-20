@@ -39,8 +39,10 @@
 ;;; LilyPond syntax (language dependent)
 ;;;
 (defclass lyqi:lilypond-syntax ()
-  ((parse-tree :initform nil
-               :accessor lyqi:parse-tree)
+  ((first-line :initform nil
+               :accessor lyqi:first-line)
+   (last-line :initform nil
+              :accessor lyqi:last-line)
    ;; parsing data
    (pitch-data            :initarg :pitch-data)
    (pitch-regex           :initarg :pitch-regex)
@@ -94,6 +96,36 @@
 
 (defvar lyqi:*lilypond-syntax* nil)
 
+(defmethod object-print ((this lyqi:lilypond-syntax) &rest strings)
+  (format "#<%s>" (object-class this)))
+
+(defclass lyqi:line-parse ()
+  ((marker :initarg :marker
+           :accessor lyqi:marker)
+   (forms :initarg :forms
+          :accessor lyqi:line-forms)
+   (lexer-state :initform nil
+                :initarg :lexer-state)
+   (previous-line :initform nil
+                  :initarg :previous-line
+                  :accessor lyqi:previous-line)
+   (next-line :initform nil
+              :initarg :next-line
+              :accessor lyqi:next-line)))
+
+(defmethod object-print ((this lyqi:line-parse) &rest strings)
+  (let* ((marker (lyqi:marker this))
+         (start (and marker (marker-position marker))))
+    (format "#<%s [%s]>"
+            (object-class this)
+            (or start "?"))))
+
+(defmethod lyqi:link-lines (first next)
+  (when first
+    (set-slot-value first 'next-line next))
+  (when next
+    (set-slot-value next 'previous-line first)))
+
 ;;;
 ;;; Lexemes
 ;;;
@@ -107,7 +139,32 @@
          :accessor lyqi:size)
    (children :initarg :children
              :initform nil
-             :accessor lyqi:children-of)))
+             :accessor lyqi:children)))
+
+(defmethod object-write ((this lyqi:parser-symbol) &optional comment)
+  (let* ((marker (lyqi:marker this))
+         (size (lyqi:size this))
+         (start (and marker (marker-position marker)))
+         (end (and marker size (+ start size))))
+    (princ
+     (format "#<%s [%s-%s] \"%s\""
+             (object-class this)
+             (or start "?") (or end "?")
+             (buffer-substring-no-properties start end)))
+    (mapcar (lambda (lexeme)
+              (princ " ")
+              (princ (object-class lexeme)))
+            (lyqi:children this))
+    (princ ">\n")))
+
+(defmethod object-print ((this lyqi:parser-symbol) &rest strings)
+  (let* ((marker (lyqi:marker this))
+         (size (lyqi:size this))
+         (start (and marker (marker-position marker)))
+         (end (and marker size (+ start size))))
+    (format "#<%s [%s-%s]>"
+            (object-class this)
+            (or start "?") (or end "?"))))
 
 (defclass lyqi:lexeme (lyqi:parser-symbol) ())
 
@@ -191,19 +248,31 @@
 (defvar lyqi:*lexer-line-comment-state* (make-instance 'lyqi:lexer-line-comment-state))
 
 ;;; lex/parse functions
-(defun lyqi:parse (syntax &optional end-position)
-  "Return a list of form lists, built by parsing, line by line,
-from current point up to `end-position' (or end of buffer).  The
-list of form list is in reverse order, that is the parse list
-corresponding to the last line of buffer is found first."
-  (loop with end-position = (or end-position (point-max))
-        with result = nil
-        for (forms state) = (lyqi:parse-line syntax) then (lyqi:parse-line syntax state)
-        do (push forms result)
-        do (forward-line 1) ;; go to next-line
-        if (>= (point) end-position) return result))
+(defun lyqi:parse (syntax &rest cl-keys)
+  "Parse lines in current buffer from point up to `end-position'.
+Return two values: first parse line and last parse
+line (i.e. both ends of double linked parse line list.)
+Keywords supported:
+  :lexer-state lyqi:*lexer-toplevel-state*
+  :end-position (point-max)"
+  (cl-parsing-keywords ((:lexer-state lyqi:*lexer-toplevel-state*) (:end-position (point-max))) ()
+    (loop with result = nil
+          with first-line = nil
+          for previous-line = nil then line
+          for state = cl-lexer-state then next-state
+          for marker = (point-marker)
+          for (forms next-state) = (lyqi:parse-line syntax state)
+          for line = (make-instance 'lyqi:line-parse
+                                    :marker marker
+                                    :previous-line previous-line
+                                    :lexer-state state
+                                    :forms forms)
+          unless first-line do (setf first-line line)
+          if previous-line do (set-slot-value previous-line 'next-line line)
+          do (forward-line 1) ;; go to next-line
+          if (>= (point) cl-end-position) return (values first-line line))))
 
-(defun lyqi:parse-line (syntax &optional state)
+(defun lyqi:parse-line (syntax state)
   "Return a form list, built by parsing current buffer starting
 from current point up to the end of the current line."
   (loop with end-point = (point-at-eol)
@@ -214,7 +283,6 @@ from current point up to the end of the current line."
         if form collect form into result
         while continue
         finally return (values result new-state)))
-  
 
 (defgeneric lyqi:lex (lexer-state syntax non-reduced-lexemes next-form-class)
   "If a lexeme can be found after point, return five values:
@@ -279,10 +347,10 @@ rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {dura
                                           :size (- (point) marker)))
                      'lyqi:chord-form
                      t)))
-          ;; a line comment
-          ((looking-at "%[^{}]")
+          ;; TODO: multi line comment
+          ;; line comment
+          ((looking-at "%+")
            (let ((marker (point-marker)))
-             (looking-at "%+")
              (lyqi:forward-match)
              (values lyqi:*lexer-line-comment-state*
                      nil
@@ -321,6 +389,7 @@ duration | no-duration -> toplevel-state"
          (size (- (+ (lyqi:marker duration-lexeme)
                      (lyqi:size duration-lexeme))
                   marker)))
+    (lyqi:skip-whitespace)
     (values lyqi:*lexer-toplevel-state*
             (make-instance next-form-class
                            :marker marker
@@ -329,7 +398,7 @@ duration | no-duration -> toplevel-state"
                            :duration duration-lexeme)
             nil
             nil
-            t)))
+            (not (eolp)))))
 
 (defmethod lyqi:lex ((lexer lyqi:lexer-note-duration?-state)
                      syntax non-reduced-lexemes next-form-class)
@@ -358,6 +427,7 @@ duration | no-duration -> toplevel-state"
          (size (- (+ (lyqi:marker last-lexeme)
                      (lyqi:size last-lexeme))
                   first-marker)))
+    (lyqi:skip-whitespace)
     (values lyqi:*lexer-toplevel-state*
             (make-instance next-form-class
                            :marker first-marker
@@ -367,22 +437,30 @@ duration | no-duration -> toplevel-state"
                            :rest (not (not rest-lexeme)))
             nil
             nil
-            t)))
+            (not (eolp)))))
 
 (defmethod lyqi:lex ((lexer lyqi:lexer-line-comment-state)
                      syntax non-reduced-lexemes next-form-class)
   (lyqi:skip-whitespace)
-  (let ((marker (point-marker))
-        (start-lexeme (first non-reduced-lexemes)))
-    (forward-line 0)
+  (let* ((marker (point-marker))
+         (start-lexeme (first non-reduced-lexemes))
+         (comment-lexeme (and (not (eolp))
+                              (end-of-line)
+                              (make-instance 'lyqi:line-comment-lexeme
+                                             :marker marker
+                                             :size (- (point) marker)))))
     (values lyqi:*lexer-toplevel-state*
             (make-instance 'lyqi:line-comment-form
                            :marker (lyqi:marker start-lexeme)
-                           :size (- (point) (lyqi:marker start-lexeme))
-                           :children (list start-lexeme
-                                           (make-instance 'lyqi:line-comment-lexeme
-                                                          :marker marker
-                                                          :size (- (point) marker)))))))
+                           :size (if comment-lexeme
+                                     (- (point) (lyqi:marker start-lexeme))
+                                     (lyqi:size start-lexeme))
+                           :children (if comment-lexeme
+                                         (list start-lexeme comment-lexeme)
+                                         (list start-lexeme)))
+            nil
+            nil
+            nil)))
 
 (defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state)
                      syntax non-reduced-lexemes next-form-class)
@@ -425,7 +503,7 @@ duration | no-duration -> toplevel-state"
         (t
          (values lyqi:*lexer-incomplete-chord-state*
                  nil
-                 (cons (lyqi:lex-verbatim syntax "[^ >]+") non-reduced-lexemes)
+                 (cons (lyqi:lex-verbatim syntax "[^ \t\r\n>]+") non-reduced-lexemes)
                  next-form-class
                  t))))
 
@@ -434,7 +512,8 @@ duration | no-duration -> toplevel-state"
 ;;;
 
 (defun lyqi:skip-whitespace ()
-  (when (looking-at "\\s-+")
+  "Skip white space (except new lines)."
+  (when (looking-at "[ 	]+")
     (lyqi:forward-match)))
 
 (defun lyqi:lex-verbatim (syntax &optional verbatim-regex)

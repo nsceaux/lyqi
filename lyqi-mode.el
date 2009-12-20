@@ -19,4 +19,5 @@
   (make-local-variable 'after-change-functions)
   (setq after-change-functions '(lyqi:parse-update))
   (make-local-variable 'lyqi:*lilypond-syntax*)
-  (setq lyqi:*lilypond-syntax* (lyqi:make-lilypond-syntax 'italiano)))
+  (setq lyqi:*lilypond-syntax* (lyqi:make-lilypond-syntax 'italiano))
+  (lyqi:parse-and-highlight-buffer))
