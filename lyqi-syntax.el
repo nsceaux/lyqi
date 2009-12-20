@@ -353,7 +353,7 @@ rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {dura
            (let ((marker (point-marker)))
              (lyqi:forward-match)
              (values lyqi:*lexer-line-comment-state*
-                     nil
+                     (reduce-lexemes)
                      (list (make-instance 'lyqi:line-comment-start-lexeme
                                           :marker marker
                                           :size (- (point) marker)))
@@ -364,6 +364,7 @@ rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {dura
            (let ((marker (point-marker)))
              (lyqi:forward-match)
              (values lyqi:*lexer-toplevel-state*
+                     ;; TODO reduce-lexemes
                      (make-instance 'lyqi:keyword-form
                                     :marker marker
                                     :size (- (point) marker))
@@ -445,10 +446,11 @@ duration | no-duration -> toplevel-state"
   (let* ((marker (point-marker))
          (start-lexeme (first non-reduced-lexemes))
          (comment-lexeme (and (not (eolp))
-                              (end-of-line)
-                              (make-instance 'lyqi:line-comment-lexeme
-                                             :marker marker
-                                             :size (- (point) marker)))))
+                              (progn
+                                (end-of-line)
+                                (make-instance 'lyqi:line-comment-lexeme
+                                               :marker marker
+                                               :size (- (point) marker))))))
     (values lyqi:*lexer-toplevel-state*
             (make-instance 'lyqi:line-comment-form
                            :marker (lyqi:marker start-lexeme)
