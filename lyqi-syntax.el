@@ -277,142 +277,184 @@ Keywords supported:
 from current point up to the end of the current line."
   (loop with end-point = (point-at-eol)
         for finished = nil then (>= (point) end-point)
-        for (new-state form non-reduced-lexemes next-form-class continue)
-        = (lyqi:lex (or state lyqi:*lexer-toplevel-state*) syntax nil nil)
-        then (lyqi:lex new-state syntax non-reduced-lexemes next-form-class)
+        for (new-state form parse-data continue)
+        = (lyqi:lex (or state lyqi:*lexer-toplevel-state*) syntax nil)
+        then (lyqi:lex new-state syntax parse-data)
         if form collect form into result
         while continue
         finally return (values result new-state)))
 
-(defgeneric lyqi:lex (lexer-state syntax non-reduced-lexemes next-form-class)
-  "If a lexeme can be found after point, return five values:
+(defclass lyqi:parse-data ()
+  ((lexemes :initarg :lexemes
+            :initform nil)
+   (form-class :initarg :form-class)
+   (next-lexer-state :initarg :next-lexer-state
+                     :initform lyqi:*lexer-toplevel-state*)))
+
+(defgeneric lyqi:lex (lexer-state syntax parse-data)
+  "Lex or parse one element.
+
+Depending on `lexer-state' and the text at current point, either
+lex a lexeme, or reduce previous lexemes (accumulated in
+`parse-data') to build a form, or both.
+
+Return four values:
 - the new lexer state;
-- a form of type `next-form-class', or NIL if lexemes do not reduce yet;
-- a list of lexemes, not yet reduced (possibly NIL);
-- the class name of the next form (to be used when lexemes are reduced);
-- NIL if the end of line is reached, T otherwise.
-Advance point at the end of the returned lexeme.")
+- a form if lexemes have been reduced, or NIL otherwise;
+- updated parse data (the `parse-data' argument may be modified),
+or NIL if parse data is not relevant.
+- NIL if the line parsing is finished, T otherwise.
+
+The parse data contains the list a lexemes yet to be reduced, the
+class of the form to be produced, and the lexer state to use
+after the reduce.  The input `parse-data' may be NIL if parse
+data is not relevant at this step (for instance, at the
+beginning.)")
 
 ;;;
 ;;; Top level
 ;;;
-(defmethod lyqi:lex ((lexer lyqi:lexer-toplevel-state)
-                     syntax non-reduced-lexemes next-form-class)
-  "Lexing in {toplevel} state
-EOL : reduce all lexemes into a verbatim form
-note -> note lexeme, {note-duration?} state
-rest | mm-rest | skip | spacer | chord-repetition -> rest-skip-etc lexeme, {duration?} state
-'<' -> chord-start lexeme, {incomplete-chord} state
-\\command -> command lexeme, {toplevel} state
-% ... EOL -> line comment form, {toplevel} state
-<other things> -> verbatim lexeme, {toplevel} state"
-  (labels ((reduce-lexemes ()
-                           (when non-reduced-lexemes
-                             (let* ((last-lexeme (first non-reduced-lexemes))
-                                    (verbatim-lexemes (nreverse non-reduced-lexemes))
-                                    (marker (lyqi:marker (first verbatim-lexemes)))
-                                    (size (- (+ (lyqi:marker last-lexeme)
-                                                (lyqi:size last-lexeme))
-                                             marker)))
-                               (make-instance 'lyqi:verbatim-form
-                                              :marker marker
-                                              :size size
-                                              :children verbatim-lexemes)))))
+(defmethod lyqi:lex ((lexer lyqi:lexer-toplevel-state) syntax parse-data)
+  "Lexing in {toplevel} state"
+  (labels ((reduce-lexemes
+            () ; indentation is broken
+            (let ((non-reduced-lexemes (and parse-data (slot-value parse-data 'lexemes))))
+              (when non-reduced-lexemes
+                (let* ((last-lexeme (first non-reduced-lexemes))
+                       (verbatim-lexemes (nreverse non-reduced-lexemes))
+                       (marker (lyqi:marker (first verbatim-lexemes)))
+                       (size (- (+ (lyqi:marker last-lexeme)
+                                   (lyqi:size last-lexeme))
+                                marker)))
+                  (make-instance 'lyqi:verbatim-form
+                                 :marker marker
+                                 :size size
+                                 :children verbatim-lexemes))))))
     (lyqi:skip-whitespace)
     (cond ((eolp)
            ;; at end of line, reduce remaining lexemes
-           (values lyqi:*lexer-toplevel-state* (reduce-lexemes) nil nil nil))
+           (values lyqi:*lexer-toplevel-state* (reduce-lexemes) nil nil))
           ;; a note
+          ;; - reduce preceding verbatim lexemes (if any)
+          ;; - lex the note and add the lexeme to the output parse data
+          ;; - switch to {note-duration?} lexer state
           ((looking-at (slot-value syntax 'note-regex))
            (values lyqi:*lexer-note-duration?-state*
                    (reduce-lexemes)
-                   (list (lyqi:lex-note syntax))
-                   'lyqi:simple-note-form
+                   (make-instance 'lyqi:parse-data
+                                  :form-class 'lyqi:simple-note-form
+                                  :lexemes (list (lyqi:lex-note syntax))
+                                  :next-lexer-state lyqi:*lexer-toplevel-state*)
                    t))
           ;; rest, mm-rest, skip or spacer
+          ;; - reduce preceding verbatim lexemes (if any)
+          ;; - lex the rest/skip/etc and add the lexeme to the output parse data
+          ;; - switch to {duration?} lexer state
           ((looking-at (slot-value syntax 'rest-skip-regex))
            (values lyqi:*lexer-duration?-state*
                    (reduce-lexemes)
-                   (list (lyqi:lex-rest-skip-etc syntax))
-                   'lyqi:rest-skip-etc-form
+                   (make-instance 'lyqi:parse-data
+                                  :form-class 'lyqi:rest-skip-etc-form
+                                  :lexemes (list (lyqi:lex-rest-skip-etc syntax))
+                                  :next-lexer-state lyqi:*lexer-toplevel-state*)
                    t))
           ;; a chord start: '<'
+          ;; - reduce preceding verbatim lexemes (if any)
+          ;; - lex the chord start and add the lexeme to the output parse data
+          ;; - switch to {incomplete-chord} state
           ((looking-at "<\\([^<]\\|$\\)")
            (let ((marker (point-marker)))
              (forward-char 1)
              (values lyqi:*lexer-incomplete-chord-state*
                      (reduce-lexemes)
-                     (list (make-instance 'lyqi:chord-start-lexeme
-                                          :marker marker
-                                          :size (- (point) marker)))
-                     'lyqi:chord-form
+                     (make-instance 'lyqi:parse-data
+                                    :form-class 'lyqi:chord-form
+                                    :lexemes (list (make-instance
+                                                    'lyqi:chord-start-lexeme
+                                                    :marker marker
+                                                    :size (- (point) marker)))
+                                    :next-lexer-state lyqi:*lexer-toplevel-state*)
                      t)))
           ;; TODO: multi line comment
+
           ;; line comment
+          ;; - reduce preceding verbatim lexemes (if any)
+          ;; - lex the line-comment start and add the lexeme to the output parse data
+          ;; - switch to {line-comment} state
           ((looking-at "%+")
            (let ((marker (point-marker)))
              (lyqi:forward-match)
              (values lyqi:*lexer-line-comment-state*
                      (reduce-lexemes)
-                     (list (make-instance 'lyqi:line-comment-start-lexeme
-                                          :marker marker
-                                          :size (- (point) marker)))
-                     'lyqi:line-comment-form
+                     (make-instance 'lyqi:parse-data
+                                    :form-class 'lyqi:line-comment-form
+                                    :lexemes (list (make-instance
+                                                    'lyqi:line-comment-start-lexeme
+                                                    :marker marker
+                                                    :size (- (point) marker)))
+                                    :next-lexer-state lyqi:*lexer-toplevel-state*)
                      t)))
-          ;; a backslashed keyword, command or variable
-          ((looking-at "\\\\[a-zA-Z]+")
-           (let ((marker (point-marker)))
-             (lyqi:forward-match)
-             (values lyqi:*lexer-toplevel-state*
-                     ;; TODO reduce-lexemes
-                     (make-instance 'lyqi:keyword-form
-                                    :marker marker
-                                    :size (- (point) marker))
-                     nil
-                     nil
-                     t)))
-          ;; other top level expressions are treated as verbatim
-          (t
-           (values lyqi:*lexer-toplevel-state*
-                   nil
-                   (cons (lyqi:lex-verbatim syntax) non-reduced-lexemes)
-                   'lyqi:verbatim-form
-                   t)))))
+          ;; TODO: a backslashed keyword, command or variable
+          ;; ((looking-at "\\\\[a-zA-Z]+")
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-duration?-state)
-                     syntax non-reduced-lexemes next-form-class)
+          ;; other top level expressions are treated as verbatim
+          ;; - lex the verbatim word and add the lexeme to the output parse data
+          ;; - continue lexing in {toplevel} state
+          (t
+           (let* ((lexeme (lyqi:lex-verbatim syntax))
+                  (parse-data (if parse-data
+                                  (progn
+                                    (set-slot-value parse-data 'lexemes
+                                                    (cons lexeme
+                                                          (slot-value parse-data 'lexemes)))
+                                    parse-data)
+                                  (make-instance 'lyqi:parse-data
+                                                 :lexemes (list lexeme)
+                                                 :form-class 'lyqi:verbatim-form
+                                                 :next-lexer-state lyqi:*lexer-toplevel-state*))))
+             (values lyqi:*lexer-toplevel-state* nil parse-data t))))))
+
+(defmethod lyqi:lex ((lexer lyqi:lexer-duration?-state) syntax parse-data)
   "Lexing in duration?-state:
 duration | no-duration -> toplevel-state"
   (let* ((duration-lexeme (lyqi:lex-duration syntax))
-         (all-lexemes (nreverse (cons duration-lexeme non-reduced-lexemes)))
+         (all-lexemes (nreverse (cons duration-lexeme
+                                      (slot-value parse-data 'lexemes))))
          (first-lexeme (first all-lexemes))
          (marker (lyqi:marker first-lexeme))
          (size (- (+ (lyqi:marker duration-lexeme)
                      (lyqi:size duration-lexeme))
                   marker)))
     (lyqi:skip-whitespace)
-    (values lyqi:*lexer-toplevel-state*
-            (make-instance next-form-class
+    ;; something + duration
+    ;; ==> reduce previous lexeme and duration
+    (values (slot-value parse-data 'next-lexer-state)
+            (make-instance (slot-value parse-data 'form-class)
                            :marker marker
                            :size size
                            :children all-lexemes
                            :duration duration-lexeme)
             nil
-            nil
             (not (eolp)))))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-note-duration?-state)
-                     syntax non-reduced-lexemes next-form-class)
+(defmethod lyqi:lex ((lexer lyqi:lexer-note-duration?-state) syntax parse-data)
+  ;; note + duration
+  ;; switch to {note-rest?} state
+  (set-slot-value parse-data 'lexemes
+                  (cons (lyqi:lex-duration syntax)
+                        (slot-value parse-data 'lexemes)))
   (values lyqi:*lexer-note-rest?-state*
           nil
-          (cons (lyqi:lex-duration syntax) non-reduced-lexemes)
-          next-form-class
+          parse-data
           t))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-note-rest?-state)
-                     syntax non-reduced-lexemes next-form-class)
+(defmethod lyqi:lex ((lexer lyqi:lexer-note-rest?-state) syntax parse-data)
+  ;; note + duration + \\rest
+  ;; or note + duration
+  ;; ==> reduce
   (lyqi:skip-whitespace)
-  (let* ((duration (first non-reduced-lexemes))
+  (let* ((non-reduced-lexemes (slot-value parse-data 'lexemes))
+         (duration (first non-reduced-lexemes))
          (marker (point-marker))
          (rest-lexeme (when (looking-at "\\\\rest")
                         (lyqi:forward-match)
@@ -429,30 +471,29 @@ duration | no-duration -> toplevel-state"
                      (lyqi:size last-lexeme))
                   first-marker)))
     (lyqi:skip-whitespace)
-    (values lyqi:*lexer-toplevel-state*
-            (make-instance next-form-class
+    (values (slot-value parse-data 'next-lexer-state)
+            (make-instance (slot-value parse-data 'form-class)
                            :marker first-marker
                            :size size
                            :children all-lexemes
                            :duration duration
                            :rest (not (not rest-lexeme)))
             nil
-            nil
             (not (eolp)))))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-line-comment-state)
-                     syntax non-reduced-lexemes next-form-class)
+(defmethod lyqi:lex ((lexer lyqi:lexer-line-comment-state) syntax parse-data)
+  ;; %+ + anything until EOL ==> reduce to a line comment form
   (lyqi:skip-whitespace)
   (let* ((marker (point-marker))
-         (start-lexeme (first non-reduced-lexemes))
+         (start-lexeme (first (slot-value parse-data 'lexemes)))
          (comment-lexeme (and (not (eolp))
                               (progn
                                 (end-of-line)
                                 (make-instance 'lyqi:line-comment-lexeme
                                                :marker marker
                                                :size (- (point) marker))))))
-    (values lyqi:*lexer-toplevel-state*
-            (make-instance 'lyqi:line-comment-form
+    (values (slot-value parse-data 'next-lexer-state)
+            (make-instance (slot-value parse-data 'form-class)
                            :marker (lyqi:marker start-lexeme)
                            :size (if comment-lexeme
                                      (- (point) (lyqi:marker start-lexeme))
@@ -461,53 +502,60 @@ duration | no-duration -> toplevel-state"
                                          (list start-lexeme comment-lexeme)
                                          (list start-lexeme)))
             nil
-            nil
             nil)))
 
-(defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state)
-                     syntax non-reduced-lexemes next-form-class)
+(defmethod lyqi:lex ((lexer lyqi:lexer-incomplete-chord-state) syntax parse-data)
   "Lexing in incomplete-chord-state:
  '>' -> duration?-state
  note | other tokens -> incomplete-chord-state"
-  (lyqi:skip-whitespace)
-  (cond ((eolp)
-         ;; at end of line, reduce remaining lexemes
-         (let* ((children (nreverse non-reduced-lexemes))
-                (marker (lyqi:marker (first children))))
+  (let ((parse-data (or parse-data
+                        (make-instance 'lyqi:parse-data
+                                       :next-lexer-state lyqi:*lexer-toplevel-state*
+                                       :form-class 'lyqi:chord-end-form))))
+    (lyqi:skip-whitespace)
+    (cond ((eolp)
+           ;; at end of line, reduce remaining lexemes
+           (let* ((children (nreverse (slot-value parse-data 'lexemes)))
+                  (marker (lyqi:marker (first children))))
+             (values lyqi:*lexer-incomplete-chord-state*
+                     (make-instance 'lyqi:incomplete-chord-form
+                                    :marker marker
+                                    :size (- (point) marker)
+                                    :children children)
+                     nil
+                     nil)))
+          ;; a note
+          ((looking-at (slot-value syntax 'note-regex))
+           (set-slot-value parse-data 'lexemes
+                           (cons (lyqi:lex-note syntax)
+                                 (slot-value parse-data 'lexemes)))
            (values lyqi:*lexer-incomplete-chord-state*
-                   (make-instance 'lyqi:incomplete-chord-form
-                                  :marker marker
-                                  :size (- (point) marker)
-                                  :children children)
                    nil
-                   nil
-                   nil)))
-        ;; a note
-        ((looking-at (slot-value syntax 'note-regex)) 
-         (values lyqi:*lexer-incomplete-chord-state*
+                   parse-data
+                   t))
+          ;; a chord end: '>'
+          ;; switch to {duration?} state
+          ((eql (char-after) ?\>)
+           (let ((marker (point-marker)))
+             (forward-char 1)
+             (set-slot-value parse-data 'lexemes
+                             (cons (make-instance 'lyqi:chord-end-lexeme
+                                                  :marker marker
+                                                  :size (- (point) marker))
+                                   (slot-value parse-data 'lexemes)))
+             (values lyqi:*lexer-duration?-state*
+                     nil
+                     parse-data
+                     t)))
+          ;; something else
+          (t
+           (set-slot-value parse-data 'lexemes
+                           (cons (lyqi:lex-verbatim syntax "[^ \t\r\n>]+")
+                                 (slot-value parse-data 'lexemes)))
+           (values lyqi:*lexer-incomplete-chord-state*
                  nil
-                 (cons (lyqi:lex-note syntax) non-reduced-lexemes)
-                 next-form-class
-                 t))
-        ;; a chord end: '>'
-        ((eql (char-after) ?\>)
-         (let ((marker (point-marker)))
-           (forward-char 1)
-           (values lyqi:*lexer-duration?-state*
-                   nil
-                   (cons (make-instance 'lyqi:chord-end-lexeme
-                                        :marker marker
-                                        :size (- (point) marker))
-                         non-reduced-lexemes)
-                   (or next-form-class 'lyqi:chord-end-form)
-                   t)))
-        ;; something else
-        (t
-         (values lyqi:*lexer-incomplete-chord-state*
-                 nil
-                 (cons (lyqi:lex-verbatim syntax "[^ \t\r\n>]+") non-reduced-lexemes)
-                 next-form-class
-                 t))))
+                 parse-data
+                 t)))))
 
 ;;;
 ;;; specific lexing functions

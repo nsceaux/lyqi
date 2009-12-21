@@ -42,54 +42,62 @@ modification, and fontify the changed text.
          (lyqi:parse-and-highlight-buffer))
         (t
          ;; find the portion of the parse-tree that needs an update
-         (let ((first (lyqi:first-line lyqi:*lilypond-syntax*))
-               (last (lyqi:last-line lyqi:*lilypond-syntax*))
-               (old-end (+ beginning old-length)))
-           (multiple-value-bind (first-modified-line last-modified-line)
-               ;; TODO: from top or from bottom, depending on modified region
-               ;; from bottom:
-               ;; the first modified line is found as soon as
-               ;; (<= (lyqi-marker line) beginning)
-               ;; the last modified line is found as soon as
-               ;; (< (lyqi:marker line) eld-end)
-               (loop for line = (lyqi:last-line lyqi:*lilypond-syntax*)
-                     then (lyqi:previous-line line)
-                     with first-modified-line = nil
-                     with last-modified-line = nil
-                     if (<= (lyqi:marker line) beginning)
-                     do (setf first-modified-line line)
-                     if (< (lyqi:marker line) old-end)
-                     do (setf last-modified-line line)
-                     and return (values first-modified-line last-modified-line)
-                     finally return (values first-modified-line last-modified-line))
-             (save-excursion
-               (let ((end-position (progn
-                                     (goto-char end)
-                                     (point-at-eol))))
-                 (goto-char beginning)
-                 (forward-line 0)
-                 (multiple-value-bind (first-new-line last-new-line)
-                     (lyqi:parse lyqi:*lilypond-syntax*
-                                 :lexer-state (slot-value first-modified-line 'lexer-state)
-                                 :end-position end-position)
-                   ;; update fontification of new lines
-                   (loop for line = first-new-line then (lyqi:next-line line)
-                         while line
-                         do (mapcar #'lyqi:fontify (lyqi:line-forms line)))
-                   ;; replace the old lines with the new ones
-                   (if (eql (lyqi:first-line lyqi:*lilypond-syntax*)
-                            first-modified-line)
-                       (set-slot-value lyqi:*lilypond-syntax*
-                                       'first-line
-                                       first-new-line)
-                       (lyqi:link-lines (lyqi:previous-line first-modified-line)
-                                        first-new-line))
-                   (if (eql (lyqi:last-line lyqi:*lilypond-syntax*)
-                            last-modified-line)
-                       (set-slot-value lyqi:*lilypond-syntax*
-                                       'last-line
-                                       last-new-line)
-                       (lyqi:link-lines last-new-line
-                                        (lyqi:next-line last-modified-line)))))))))))
+         (multiple-value-bind (first-modified-line last-modified-line)
+             ;; TODO: from top or from bottom, depending on position
+             ;; of the modified region
+             ;; from bottom:
+             ;; the first modified line is found as soon as
+             ;; (<= (lyqi-marker line) beginning)
+             ;; the last modified line is found as soon as
+             ;; (< (lyqi:marker line) old-end)
+             (loop for line = (lyqi:last-line lyqi:*lilypond-syntax*)
+                   then (lyqi:previous-line line)
+                   with old-end = (+ beginning old-length)
+                   with first-modified-line = nil
+                   with last-modified-line = nil
+                   if (and (not last-modified-line)
+                           (< (lyqi:marker line) old-end))
+                   do (setf last-modified-line line)
+                   if (<= (lyqi:marker line) beginning)
+                   do (setf first-modified-line line)
+                   and return (values first-modified-line last-modified-line)
+                   finally return (values first-modified-line last-modified-line))
+           (save-excursion
+             (let ((end-position (progn
+                                   (goto-char end)
+                                   (point-at-eol))))
+               (goto-char beginning)
+               (forward-line 0)
+               (multiple-value-bind (first-new-line last-new-line)
+                   (lyqi:parse lyqi:*lilypond-syntax*
+                               :lexer-state (slot-value first-modified-line 'lexer-state)
+                               :end-position end-position)
+                 ;; TODO: if the lexer state at the end of last-new-line
+                 ;; is different from the lexer state at the beginning
+                 ;; of the next line, the parse next line again (and so on)
+                 ;; update fontification of new lines
+                 (loop for line = first-new-line then (lyqi:next-line line)
+                       while line
+                       do (mapcar #'lyqi:fontify (lyqi:line-forms line)))
+                 ;; replace the old lines with the new ones
+                 (if (eql (lyqi:first-line lyqi:*lilypond-syntax*)
+                          first-modified-line)
+                     (set-slot-value lyqi:*lilypond-syntax*
+                                     'first-line
+                                     first-new-line)
+                     (lyqi:link-lines (lyqi:previous-line first-modified-line)
+                                      first-new-line))
+                 (if (eql (lyqi:last-line lyqi:*lilypond-syntax*)
+                          last-modified-line)
+                     (set-slot-value lyqi:*lilypond-syntax*
+                                     'last-line
+                                     last-new-line)
+                     (lyqi:link-lines last-new-line
+                                      (lyqi:next-line last-modified-line)))
+                 (princ (format "Parse update [%s-%s] [%s-%s]"
+                                beginning end
+                                (marker-position (lyqi:marker first-modified-line))
+                                (marker-position (lyqi:marker last-modified-line))))
+                 )))))))
 
 (provide 'lyqi-parse-update)
