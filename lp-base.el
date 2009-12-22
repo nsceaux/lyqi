@@ -38,10 +38,10 @@
 ;;; Buffer syntax
 ;;;
 (defclass lp:syntax ()
-  ((default-lexer-state
+  ((default-parser-state
      :initform nil
-     :initarg :default-lexer-state
-     :accessor lp:default-lexer-state)
+     :initarg :default-parser-state
+     :accessor lp:default-parser-state)
    (first-line :initform nil
                :accessor lp:first-line)
    (last-line :initform nil
@@ -72,8 +72,8 @@
            :accessor lp:marker)
    (forms :initarg :forms
           :accessor lp:line-forms)
-   (lexer-state :initform nil
-                :initarg :lexer-state)
+   (parser-state :initform nil
+                :initarg :parser-state)
    (previous-line :initform nil
                   :initarg :previous-line
                   :accessor lp:previous-line)
@@ -146,63 +146,80 @@
 
 
 ;;; Parsing data (used when reducing lexemes to produce forms)
-(defclass lp:parse-data ()
+(defclass lp:parser-state ()
   ((lexemes :initarg :lexemes
             :initform nil)
    (form-class :initarg :form-class)
-   (next-lexer-state :initarg :next-lexer-state
-                     :initform lp:*lexer-toplevel-state*)))
+   (next-parser-state :initarg :next-parser-state
+                      :initform nil
+                      :accessor lp:next-parser-state)))
 
-(defmethod lp:push-lexeme ((this lp:parse-data) lexeme)
+(defmethod lp:push-lexeme ((this lp:parser-state) lexeme)
   (set-slot-value this 'lexemes
                   (cons lexeme (slot-value this 'lexemes))))
 
-;;;
-;;; Lexer states
-;;;
+(defmethod lp:reduce-lexemes ((this lp:parser-state) &optional form-class)
+  (let ((reversed-lexemes (slot-value this 'lexemes)))
+    (when reversed-lexemes
+      (let* ((last-lexeme (first reversed-lexemes))
+             (lexemes (nreverse (slot-value this 'lexemes)))
+             (first-lexeme (first lexemes)))
+        (set-slot-value this 'lexemes nil)
+        (make-instance (or form-class (slot-value this 'form-class))
+                       :children lexemes
+                       :marker (lp:marker first-lexeme)
+                       :size (- (+ (lp:marker last-lexeme)
+                                   (lp:size last-lexeme))
+                                (lp:marker first-lexeme)))))))
 
-(defclass lp:lexer-state () ())
+(defmethod lp:same-parser-state-p ((this lp:parser-state) other-state)
+  (and other-state
+       (eql (object-class this)
+            (object-class other-state))
+       (let ((next-class (and (lp:next-parser-state this)
+                              (object-class (lp:next-parser-state this))))
+             (other-next-class (and (lp:next-parser-state other-state)
+                                    (object-class (lp:next-parser-state other-state)))))
+         (eql next-class other-next-class))))
+
+(defmethod lp:change-parser-state ((original lp:parser-state) new-class)
+  (with-slots (lexemes form-class next-parser-state) original
+    (make-instance new-class
+                   :lexemes lexemes
+                   :form-class form-class
+                   :next-parser-state next-parser-state)))
 
 ;;;
 ;;; Lex function
 ;;;
 
-(defgeneric lp:lex (lexer-state syntax parse-data)
+(defgeneric lp:lex (parser-state syntax)
   "Lex or parse one element.
 
-Depending on `lexer-state' and the text at current point, either
-lex a lexeme, or reduce previous lexemes (accumulated in
-`parse-data') to build a form, or both.
+Depending on `parser-state' and the text at current point, either
+lex a lexeme, or reduce previous lexemes (accumulated up to now
+in `parser-state') to build a form, or both.
 
-Return four values:
-- the new lexer state;
-- a form if lexemes have been reduced, or NIL otherwise;
-- updated parse data (the `parse-data' argument may be modified),
-or NIL if parse data is not relevant.
-- NIL if the line parsing is finished, T otherwise.
-
-The parse data contains the list a lexemes yet to be reduced, the
-class of the form to be produced, and the lexer state to use
-after the reduce.  The input `parse-data' may be NIL if parse
-data is not relevant at this step (for instance, at the
-beginning.)")
+Return three values:
+- the new parser state. The input `parser-state' may be modified,
+  in particular its `lexemes' slot;
+- a list of forms, if lexemes have been reduced, or NIL otherwise;
+- NIL if the line parsing is finished, T otherwise.")
 
 ;; a default implementation to avoid compilation warnings
-(defmethod lp:lex (lexer-state syntax parse-data)
+(defmethod lp:lex (parser-state syntax)
   (when (looking-at "[ \t]+")
     (lp:forward-match))
-  (let ((marker (point-marker)))
-    (if (eolp)
-        (values nil nil nil nil)
-        (progn
-          (looking-at "\\S-+")
-          (lp:forward-match)
-          (values nil
-                  (make-instance 'lp:form
-                                 :marker marker
-                                 :size (- (point) marker))
-                  nil
-                  (not (eolp)))))))
+  (if (eolp)
+      (values parser-state nil nil)
+      (let ((marker (point-marker)))
+        (looking-at "\\S-+")
+        (lp:forward-match)
+        (values parser-state
+                (list (make-instance 'lp:form
+                                     :marker marker
+                                     :size (- (point) marker)))
+                (not (eolp))))))
 
 ;;;
 ;;; Parse functions
@@ -215,37 +232,37 @@ line (i.e. both ends of double linked parse line list.), and the
 lexer state applicable to the following line.
 
 Keywords supported:
-  :lexer-state (lp:default-lexer-state syntax)
+  :parser-state (lp:default-parser-state syntax)
   :end-position (point-max)"
-  (cl-parsing-keywords ((:lexer-state (lp:default-lexer-state syntax))
+  (cl-parsing-keywords ((:parser-state (lp:default-parser-state syntax))
                         (:end-position (point-max))) ()
     (loop with result = nil
           with first-line = nil
           for previous-line = nil then line
-          for state = cl-lexer-state then next-state
+          for parser-state = cl-parser-state then next-parser-state
           for marker = (point-marker)
-          for (forms next-state) = (lp:parse-line syntax state)
+          for (forms next-parser-state) = (lp:parse-line syntax parser-state)
           for line = (make-instance 'lp:line-parse
                                     :marker marker
                                     :previous-line previous-line
-                                    :lexer-state state
+                                    :parser-state parser-state
                                     :forms forms)
           unless first-line do (setf first-line line)
           if previous-line do (set-slot-value previous-line 'next-line line)
           do (forward-line 1) ;; go to next-line
-          if (>= (point) cl-end-position) return (values first-line line next-state))))
+          if (>= (point) cl-end-position) return (values first-line line next-parser-state))))
 
-(defun lp:parse-line (syntax state)
+(defun lp:parse-line (syntax parser-state)
   "Return a form list, built by parsing current buffer starting
 from current point up to the end of the current line."
   (loop with end-point = (point-at-eol)
         for finished = nil then (>= (point) end-point)
-        for (new-state form parse-data continue)
-        = (lp:lex (or state (lp:default-lexer-state syntax)) syntax nil)
-        then (lp:lex new-state syntax parse-data)
-        if form collect form into result
+        for (new-parser-state forms continue)
+        = (lp:lex (or parser-state (lp:default-parser-state syntax)) syntax)
+        then (lp:lex new-parser-state syntax)
+        nconc forms into result
         while continue
-        finally return (values result new-state)))
+        finally return (values result new-parser-state)))
 
 ;;;
 ;;; Parse update
@@ -312,7 +329,7 @@ and fontify the changed text.
                  (forward-line 0)
                  (multiple-value-bind (first-new-line last-new-line next-state0)
                      (lp:parse syntax
-                               :lexer-state (slot-value first-modified-line 'lexer-state)
+                               :parser-state (slot-value first-modified-line 'parser-state)
                                :end-position end-position)
                    ;; fontify new lines
                    (loop for line = first-new-line then (lp:next-line line)
@@ -320,13 +337,11 @@ and fontify the changed text.
                          do (mapcar #'lp:fontify (lp:line-forms line)))
                    ;; replace the old lines with the new ones in the
                    ;; double-linked list
-                   (if (eql (lp:first-line syntax)
-                            first-modified-line)
+                   (if (eql (lp:first-line syntax) first-modified-line)
                        (set-slot-value syntax 'first-line first-new-line)
                        (lp:link-lines (lp:previous-line first-modified-line)
                                       first-new-line))
-                   (if (eql (lp:last-line syntax)
-                            last-modified-line)
+                   (if (eql (lp:last-line syntax) last-modified-line)
                        (set-slot-value syntax 'last-line last-new-line)
                        (lp:link-lines last-new-line
                                       (lp:next-line last-modified-line)))
@@ -337,11 +352,13 @@ and fontify the changed text.
                    (loop for line = (lp:next-line last-new-line)
                          then (lp:next-line line)
                          for new-state = next-state0 then next-state
-                         while (and line (not (eql new-state (slot-value line 'lexer-state))))
+                         while (and line
+                                    (not (lp:same-parser-state-p
+                                          new-state (slot-value line 'parser-state))))
                          for (forms next-state) = (lp:parse-line syntax new-state)
                          do (progn
                               (set-slot-value line 'forms forms)
-                              (set-slot-value line 'lexer-state new-state)
+                              (set-slot-value line 'parser-state new-state)
                               (lp:fontify line)
                               (forward-line 1)))
                    ;; debug
@@ -369,7 +386,7 @@ and fontify the changed text.
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
     (when (> end start)
-      (set-text-properties start end (or (lp:face this) '())))))
+      (set-text-properties start end (lp:face this)))))
 
 (defmethod lp:fontify ((this lp:form))
   (let ((children (slot-value this 'children)))
