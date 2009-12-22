@@ -11,6 +11,8 @@
 ;;;
 ;;; Fontification
 ;;;
+
+;; TODO: these are debug faces, define real ones.
 (defface lyqi:note-face
   '((((class color) (background dark)) :foreground "blue")
     (((class color) (background light)) :foreground "blue"))
@@ -29,8 +31,17 @@
   "Face for rests and skips."
   :group 'lyqi-faces)
 
+(defface lyqi:verbatim-face
+  '((((class color) (background dark)) :background "yellow")
+    (((class color) (background light)) :background "yellow"))
+  "Face for rests and skips."
+  :group 'lyqi-faces)
+
 (defgeneric lyqi:fontify (form)
   "Fontify a lexeme or form")
+
+(defmethod lyqi:fontify ((this lyqi:line-parse))
+  (mapcar #'lyqi:fontify (lyqi:line-forms this)))
 
 (defmethod lyqi:fontify ((this lyqi:parser-symbol))
   (let* ((start (marker-position (lyqi:marker this)))
@@ -47,7 +58,7 @@
 (defmethod lyqi:fontify ((this lyqi:verbatim-form))
   (let* ((start (marker-position (lyqi:marker this)))
          (end (+ start (lyqi:size this))))
-    (set-text-properties start end '())))
+    (set-text-properties start end '(face lyqi:verbatim-face))))
 
 (defgeneric lyqi:face (form)
   "The face of a form, used in fontification.")

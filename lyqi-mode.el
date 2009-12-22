@@ -7,7 +7,7 @@
 (eval-when-compile (require 'cl))
 (require 'eieio)
 (require 'lyqi-syntax)
-(require 'lyqi-parse-update)
+(require 'lyqi-parse)
 
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion."

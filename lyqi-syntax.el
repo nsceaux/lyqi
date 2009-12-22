@@ -94,37 +94,8 @@
                    :duration-length-regex  duration-length-regex
                    :duration-regex         duration-regex)))
 
-(defvar lyqi:*lilypond-syntax* nil)
-
 (defmethod object-print ((this lyqi:lilypond-syntax) &rest strings)
   (format "#<%s>" (object-class this)))
-
-(defclass lyqi:line-parse ()
-  ((marker :initarg :marker
-           :accessor lyqi:marker)
-   (forms :initarg :forms
-          :accessor lyqi:line-forms)
-   (lexer-state :initform nil
-                :initarg :lexer-state)
-   (previous-line :initform nil
-                  :initarg :previous-line
-                  :accessor lyqi:previous-line)
-   (next-line :initform nil
-              :initarg :next-line
-              :accessor lyqi:next-line)))
-
-(defmethod object-print ((this lyqi:line-parse) &rest strings)
-  (let* ((marker (lyqi:marker this))
-         (start (and marker (marker-position marker))))
-    (format "#<%s [%s]>"
-            (object-class this)
-            (or start "?"))))
-
-(defmethod lyqi:link-lines (first next)
-  (when first
-    (set-slot-value first 'next-line next))
-  (when next
-    (set-slot-value next 'previous-line first)))
 
 ;;;
 ;;; Lexemes
@@ -247,42 +218,7 @@
 (defclass lyqi:lexer-line-comment-state (lyqi:lexer-state) ())
 (defvar lyqi:*lexer-line-comment-state* (make-instance 'lyqi:lexer-line-comment-state))
 
-;;; lex/parse functions
-(defun lyqi:parse (syntax &rest cl-keys)
-  "Parse lines in current buffer from point up to `end-position'.
-Return two values: first parse line and last parse
-line (i.e. both ends of double linked parse line list.)
-Keywords supported:
-  :lexer-state lyqi:*lexer-toplevel-state*
-  :end-position (point-max)"
-  (cl-parsing-keywords ((:lexer-state lyqi:*lexer-toplevel-state*) (:end-position (point-max))) ()
-    (loop with result = nil
-          with first-line = nil
-          for previous-line = nil then line
-          for state = cl-lexer-state then next-state
-          for marker = (point-marker)
-          for (forms next-state) = (lyqi:parse-line syntax state)
-          for line = (make-instance 'lyqi:line-parse
-                                    :marker marker
-                                    :previous-line previous-line
-                                    :lexer-state state
-                                    :forms forms)
-          unless first-line do (setf first-line line)
-          if previous-line do (set-slot-value previous-line 'next-line line)
-          do (forward-line 1) ;; go to next-line
-          if (>= (point) cl-end-position) return (values first-line line))))
-
-(defun lyqi:parse-line (syntax state)
-  "Return a form list, built by parsing current buffer starting
-from current point up to the end of the current line."
-  (loop with end-point = (point-at-eol)
-        for finished = nil then (>= (point) end-point)
-        for (new-state form parse-data continue)
-        = (lyqi:lex (or state lyqi:*lexer-toplevel-state*) syntax nil)
-        then (lyqi:lex new-state syntax parse-data)
-        if form collect form into result
-        while continue
-        finally return (values result new-state)))
+;;;
 
 (defclass lyqi:parse-data ()
   ((lexemes :initarg :lexemes
@@ -290,6 +226,8 @@ from current point up to the end of the current line."
    (form-class :initarg :form-class)
    (next-lexer-state :initarg :next-lexer-state
                      :initform lyqi:*lexer-toplevel-state*)))
+
+;;; lex functions
 
 (defgeneric lyqi:lex (lexer-state syntax parse-data)
   "Lex or parse one element.
