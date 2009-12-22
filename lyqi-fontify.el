@@ -6,6 +6,7 @@
 
 (eval-when-compile (require 'cl))
 (require 'eieio)
+(require 'lp-base)
 (require 'lyqi-syntax)
 
 ;;;
@@ -37,51 +38,18 @@
   "Face for rests and skips."
   :group 'lyqi-faces)
 
-(defgeneric lyqi:fontify (form)
-  "Fontify a lexeme or form")
-
-(defmethod lyqi:fontify ((this lyqi:line-parse))
-  (mapcar #'lyqi:fontify (lyqi:line-forms this)))
-
-(defmethod lyqi:fontify ((this lyqi:parser-symbol))
-  (let* ((start (marker-position (lyqi:marker this)))
-         (end (+ start (lyqi:size this))))
-    (when (> end start)
-      (set-text-properties start end (or (lyqi:face this) ())))))
-
-(defmethod lyqi:fontify ((this lyqi:form))
-  (let ((children (slot-value this 'children)))
-    (if children
-        (mapcar 'lyqi:fontify children)
-        (call-next-method))))
-
-(defmethod lyqi:fontify ((this lyqi:verbatim-form))
-  (let* ((start (marker-position (lyqi:marker this)))
-         (end (+ start (lyqi:size this))))
+(defmethod lp:fontify ((this lyqi:verbatim-form))
+  (let* ((start (marker-position (lp:marker this)))
+         (end (+ start (lp:size this))))
     (set-text-properties start end '(face lyqi:verbatim-face))))
 
-(defgeneric lyqi:face (form)
-  "The face of a form, used in fontification.")
-
-(defmethod lyqi:face ((this lyqi:parser-symbol))
-  nil)
-
-(defmethod lyqi:face ((this lyqi:note-lexeme))
+(defmethod lp:face ((this lyqi:note-lexeme))
   '(face lyqi:note-face))
 
-(defmethod lyqi:face ((this lyqi:rest-skip-etc-lexeme))
+(defmethod lp:face ((this lyqi:rest-skip-etc-lexeme))
   '(face lyqi:rest-face))
 
-(defmethod lyqi:face ((this lyqi:duration-lexeme))
+(defmethod lp:face ((this lyqi:duration-lexeme))
   '(face lyqi:duration-face))
-
-(defmethod lyqi:face ((this lyqi:keyword-form))
-  '(face font-lock-keyword-face))
-
-(defmethod lyqi:face ((this lyqi:line-comment-start-lexeme))
-  '(face font-lock-comment-delimiter-face))
-
-(defmethod lyqi:face ((this lyqi:line-comment-lexeme))
-  '(face font-lock-comment-face))
 
 (provide 'lyqi-fontify)

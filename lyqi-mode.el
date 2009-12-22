@@ -6,8 +6,9 @@
 
 (eval-when-compile (require 'cl))
 (require 'eieio)
+(require 'lp-base)
 (require 'lyqi-syntax)
-(require 'lyqi-parse)
+(require 'lyqi-fontify)
 
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion."
@@ -17,7 +18,7 @@
   (setq mode-name "Lyqi")
   ;; local variables
   (make-local-variable 'after-change-functions)
-  (setq after-change-functions '(lyqi:parse-update))
-  (make-local-variable 'lyqi:*lilypond-syntax*)
-  (setq lyqi:*lilypond-syntax* (lyqi:make-lilypond-syntax 'italiano))
-  (lyqi:parse-and-highlight-buffer))
+  (setq after-change-functions '(lp:parse-update))
+  (make-local-variable 'lp:*syntax*)
+  (setq lp:*current-syntax* (lyqi:make-lilypond-syntax 'italiano))
+  (lp:parse-and-highlight-buffer))
