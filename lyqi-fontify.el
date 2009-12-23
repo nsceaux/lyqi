@@ -13,6 +13,11 @@
 ;;; Fontification
 ;;;
 
+(defgroup lyqi-faces nil
+  "Faces for LilyPond buffers."
+  :prefix "lyqi:"
+  :group 'lyqi)
+
 ;; TODO: these are debug faces, define real ones.
 (defface lyqi:note-face
   '((((class color) (background dark)) :foreground "blue")
@@ -38,6 +43,12 @@
   "Face for rests and skips."
   :group 'lyqi-faces)
 
+(defface lyqi:scheme-face
+  '((((class color) (background dark)) :background "violet")
+    (((class color) (background light)) :background "violet"))
+  "Face for scheme forms."
+  :group 'lyqi-faces)
+
 (defmethod lp:fontify ((this lyqi:verbatim-form))
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
@@ -51,5 +62,8 @@
 
 (defmethod lp:face ((this lyqi:duration-lexeme))
   '(face lyqi:duration-face))
+
+(defmethod lp:face ((this lyqi:scheme-lexeme))
+  '(face lyqi:scheme-face))
 
 (provide 'lyqi-fontify)

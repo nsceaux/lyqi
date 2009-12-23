@@ -10,6 +10,59 @@
 (require 'lyqi-syntax)
 (require 'lyqi-fontify)
 
+(defvar lyqi:prefered-languages '(italiano nederlands))
+(defvar lyqi:prefered-octave-mode 'absolute)
+
+(defun lyqi:select-next-language (&optional syntax)
+  (interactive)
+  (let* ((syntax (or syntax (lp:current-syntax)))
+         (current-language (slot-value syntax 'language))
+         (relative-mode (slot-value syntax 'relative-mode)))
+    (setq lp:*current-syntax*
+          (lyqi:make-lilypond-syntax 
+           (loop for langs on lyqi:prefered-languages
+                 for lang = (first langs)
+                 if (eql lang current-language)
+                 return (or (cadr langs) (first lyqi:prefered-languages)))
+           relative-mode))
+  (force-mode-line-update)
+  (lp:parse-and-highlight-buffer)))
+
+(defun lyqi:toggle-relative-mode (&optional syntax)
+  (interactive)
+  (let ((syntax (or syntax (lp:current-syntax))))
+    (set-slot-value syntax 'relative-mode
+                    (not (slot-value syntax 'relative-mode))))
+  (force-mode-line-update))
+
+(defun lyqi:toggle-quick-edit-mode (&optional syntax)
+  (interactive)
+  (let ((syntax (or syntax (lp:current-syntax))))
+    (set-slot-value syntax 'quick-edit-mode
+                    (not (slot-value syntax 'quick-edit-mode))))
+  (force-mode-line-update))
+
+(defun lyqi:header-line-format ()
+  '("Language: "
+    (:eval (propertize (symbol-name (slot-value (lp:current-syntax) 'language))
+                       'help-echo "mouse-1: select next language"
+                       'mouse-face 'mode-line-highlight
+                       'local-map '(keymap (header-line keymap (mouse-1 . lyqi:select-next-language)))))
+    " | Octave mode: "
+    (:eval (propertize (if (slot-value (lp:current-syntax) 'relative-mode)
+                           "relative"
+                           "absolute")
+                       'help-echo "mouse-1: toggle octave mode"
+                       'mouse-face 'mode-line-highlight
+                       'local-map '(keymap (header-line keymap (mouse-1 . lyqi:toggle-relative-mode)))))
+    " | Edit mode: "
+    (:eval (propertize (if (slot-value (lp:current-syntax) 'quick-edit-mode)
+                           "quick insert"
+                           "normal")
+                       'help-echo "mouse-1: toggle edit mode"
+                       'mouse-face 'mode-line-highlight
+                       'local-map '(keymap (header-line keymap (mouse-1 . lyqi:toggle-quick-edit-mode)))))))
+
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion."
   (interactive)
@@ -19,6 +72,16 @@
   ;; local variables
   (make-local-variable 'after-change-functions)
   (setq after-change-functions '(lp:parse-update))
-  (make-local-variable 'lp:*syntax*)
-  (setq lp:*current-syntax* (lyqi:make-lilypond-syntax 'italiano))
-  (lp:parse-and-highlight-buffer))
+  (make-local-variable 'lp:*current-syntax*)
+  (let* ((previous-syntax lp:*current-syntax*)
+         (language (or (and previous-syntax
+                            (slot-value previous-syntax 'language))
+                       (first lyqi:prefered-languages)))
+         (relative-mode (if previous-syntax
+                            (slot-value previous-syntax 'relative-mode)
+                            (eql lyqi:prefered-octave-mode 'relative))))
+    (setq lp:*current-syntax*
+          (lyqi:make-lilypond-syntax language relative-mode)))
+  (lp:parse-and-highlight-buffer)
+  ;; header line shows info on lyqi mode
+  (setq header-line-format (lyqi:header-line-format)))
