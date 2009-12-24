@@ -63,6 +63,13 @@
     (select-window (posn-window (event-start event)))
     (lyqi:toggle-quick-edit-mode)))
 
+(defun lyqi:header-line-lyqi-mode (event)
+  "Like `lyqi-mode', but temporarily select EVENT's window."
+  (interactive "e")
+  (save-selected-window
+    (select-window (posn-window (event-start event)))
+    (lyqi-mode)))
+
 (defun lyqi:set-header-line-format ()
   (setq header-line-format
         '(" "
@@ -98,7 +105,7 @@
                                  'help-echo "re-run lyqi-mode"
                                  'mouse-face 'mode-line-highlight
                                  'local-map '(keymap (header-line
-                                                      keymap (mouse-1 . lyqi-mode)))))))))
+                                                      keymap (mouse-1 . lyqi:header-line-lyqi-mode)))))))))
 
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion."
