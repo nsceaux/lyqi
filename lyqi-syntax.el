@@ -177,9 +177,7 @@
 (defclass lyqi:line-comment-form (lp:form) ())
 (defclass lyqi:multi-line-comment-form (lp:form) ())
 
-(defclass lyqi:string-form (lp:form) ())
-
-(defclass lyqi:keyword-form (lp:form) ())
+(defclass lyqi:scheme-list-form (lp:form) ())
 
 ;;;
 ;;; Lex functions
@@ -270,27 +268,18 @@
           ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*\"")
            (lyqi:with-forward-match (marker size)
              (values parser-state
-                     (reduce-lexemes
-                      (make-instance 'lyqi:string-form
-                                     :marker marker
-                                     :size size
-                                     :children (list (make-instance 'lyqi:string-lexeme
-                                                                    :marker marker
-                                                                    :size size))))
+                     (reduce-lexemes (make-instance 'lyqi:string-lexeme
+                                                    :marker marker
+                                                    :size size))
                      (not (eolp)))))
           ;; a unterminated string
           ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*$")
            (lyqi:with-forward-match (marker size)
              (values (make-instance 'lyqi:string-parser-state
-                                    :form-class 'lyqi:string-form
                                     :next-parser-state parser-state)
-                     (reduce-lexemes
-                      (make-instance 'lyqi:string-form
-                                     :marker marker
-                                     :size size
-                                     :children (list (make-instance 'lyqi:string-lexeme
-                                                                    :marker marker
-                                                                    :size size))))
+                     (reduce-lexemes (make-instance 'lyqi:string-lexeme
+                                                    :marker marker
+                                                    :size size))
                      nil)))
           ;; a scheme form (has to be after strings)
           ((looking-at "#")
@@ -320,13 +309,9 @@
           ((looking-at "\\\\[a-zA-Z]+")
            (lyqi:with-forward-match (marker size)
              (values parser-state
-                     (reduce-lexemes
-                      (make-instance 'lyqi:keyword-form
-                                     :marker marker
-                                     :size size
-                                     :children (list (make-instance 'lp:keyword-lexeme
-                                                                    :marker marker
-                                                                    :size size))))
+                     (reduce-lexemes (make-instance 'lp:keyword-lexeme
+                                                    :marker marker
+                                                    :size size))
                      t)))
           ;; other top level expressions are treated as verbatim
           ;; - lex the verbatim word and add the lexeme to the output parse data
@@ -388,23 +373,17 @@
   (cond ((looking-at "\\([^\"\\\\]\\|\\\\.\\)*\"") ;; string end
          (lyqi:with-forward-match (marker size)
            (values (lp:next-parser-state parser-state)
-                   (list (make-instance 'lyqi:string-form
+                   (list (make-instance 'lyqi:string-lexeme
                                         :marker marker
-                                        :size size
-                                        :children (list (make-instance 'lyqi:string-lexeme
-                                                                       :marker marker
-                                                                       :size size))))
+                                        :size size))
                    (not (eolp)))))
         ;; a unterminated string
         ((looking-at "\\([^\"\\\\]\\|\\\\.\\)*$")
          (lyqi:with-forward-match (marker size)
            (values parser-state
-                   (list (make-instance 'lyqi:string-form
+                   (list (make-instance 'lyqi:string-lexeme
                                         :marker marker
-                                        :size size
-                                        :children (list (make-instance 'lyqi:string-lexeme
-                                                                       :marker marker
-                                                                       :size size))))
+                                        :size size))
                    nil)))))
 
 (defmethod lp:lex ((parser-state lyqi:incomplete-chord-parser-state) syntax)

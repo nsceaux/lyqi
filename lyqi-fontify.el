@@ -49,6 +49,12 @@
   "Face for scheme forms."
   :group 'lyqi-faces)
 
+(defface lyqi:delimiter-face
+  '((((class color) (background dark)) :foreground "grey")
+    (((class color) (background light)) :foreground "grey"))
+  "Face for delimiters."
+  :group 'lyqi-faces)
+
 (defmethod lp:fontify ((this lyqi:verbatim-form))
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
@@ -65,5 +71,8 @@
 
 (defmethod lp:face ((this lyqi:scheme-lexeme))
   '(face lyqi:scheme-face))
+
+(defmethod lp:face ((this lyqi:delimiter-lexeme))
+  '(face lyqi:delimiter-face))
 
 (provide 'lyqi-fontify)
