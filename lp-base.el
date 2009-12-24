@@ -308,12 +308,12 @@ two values: the first and the last parse line."
                if (and (not first-found-line)
                        (<= (lp:marker line) position))
                do (setf first-found-line line)
-               if (< (lp:marker line) end-position) return (values (or first-found-line line) line)))
+               if (<= (lp:marker line) end-position) return (values (or first-found-line line) line)))
         ((backward) ;; backward search from `from-line'
          (loop for line = from-line then (lp:previous-line line)
                with last-found-line = nil
                if (and (not last-found-line)
-                       (< (lp:marker line) end-position))
+                       (<= (lp:marker line) end-position))
                do (setf last-found-line line)
                if (<= (lp:marker line) position) return (values line (or last-found-line line))))
         (t ;; search first line backward, and last-line forward from `from-line'
