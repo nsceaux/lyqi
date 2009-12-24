@@ -72,7 +72,7 @@
 (defmethod lp:face ((this lyqi:scheme-lexeme))
   '(face lyqi:scheme-face))
 
-(defmethod lp:face ((this lyqi:delimiter-lexeme))
+(defmethod lp:face ((this lp:delimiter-lexeme))
   '(face lyqi:delimiter-face))
 
 (provide 'lyqi-fontify)

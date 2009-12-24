@@ -9,6 +9,7 @@
 (require 'lp-base)
 (require 'lyqi-syntax)
 (require 'lyqi-fontify)
+(require 'lyqi-indent)
 
 (defvar lyqi:prefered-languages '(italiano nederlands))
 (defvar lyqi:prefered-octave-mode 'absolute)
@@ -114,6 +115,8 @@
   (setq major-mode 'lyqi-mode)
   (setq mode-name "Lyqi")
   ;; local variables
+  (make-local-variable 'indent-line-function)
+  (setq indent-line-function 'lyqi:indent-line)
   (make-local-variable 'after-change-functions)
   (setq after-change-functions '(lp:parse-update))
   (make-local-variable 'lp:*current-syntax*)

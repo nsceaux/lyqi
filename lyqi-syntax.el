@@ -116,13 +116,10 @@
 (defclass lyqi:skip-lexeme (lyqi:rest-skip-etc-lexeme) ())
 (defclass lyqi:chord-repetition-lexeme (lyqi:rest-skip-etc-lexeme) ())
 
-(defclass lyqi:delimiter-lexeme (lp:lexeme) ())
-(defclass lyqi:delimiter-start-lexeme (lyqi:delimiter-lexeme) ())
-(defclass lyqi:delimiter-end-lexeme (lyqi:delimiter-lexeme) ())
-(defclass lyqi:simultaneous-start-lexeme (lyqi:delimiter-start-lexeme) ())
-(defclass lyqi:simultaneous-end-lexeme (lyqi:delimiter-end-lexeme) ())
-(defclass lyqi:sequential-start-lexeme (lyqi:delimiter-start-lexeme) ())
-(defclass lyqi:sequential-end-lexeme (lyqi:delimiter-end-lexeme) ())
+(defclass lyqi:simultaneous-start-lexeme (lp:opening-delimiter-lexeme) ())
+(defclass lyqi:simultaneous-end-lexeme (lp:closing-delimiter-lexeme) ())
+(defclass lyqi:sequential-start-lexeme (lp:opening-delimiter-lexeme) ())
+(defclass lyqi:sequential-end-lexeme (lp:closing-delimiter-lexeme) ())
 
 (defclass lyqi:chord-start-lexeme (lp:lexeme) ())
 (defclass lyqi:chord-end-lexeme (lp:lexeme) ())
@@ -150,13 +147,13 @@
 (defclass lyqi:scheme-lexeme (lp:lexeme) ())
 (defclass lyqi:sharp-lexeme (lyqi:scheme-lexeme) ())
 (defclass lyqi:left-parenthesis-lexeme (lyqi:scheme-lexeme
-                                        lyqi:delimiter-start-lexeme) ())
+                                        lp:opening-delimiter-lexeme) ())
 (defclass lyqi:right-parenthesis-lexeme (lyqi:scheme-lexeme
-                                         lyqi:delimiter-end-lexeme) ())
+                                         lp:closing-delimiter-lexeme) ())
 (defclass lyqi:embedded-lilypond-start-lexeme (lyqi:scheme-lexeme
-                                               lyqi:delimiter-start-lexeme) ())
+                                               lp:opening-delimiter-lexeme) ())
 (defclass lyqi:embedded-lilypond-end-lexeme (lyqi:scheme-lexeme
-                                             lyqi:delimiter-end-lexeme) ())
+                                             lp:closing-delimiter-lexeme) ())
 
 ;;;
 ;;; forms
