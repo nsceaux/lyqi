@@ -45,7 +45,9 @@
    (first-line :initform nil
                :accessor lp:first-line)
    (last-line :initform nil
-              :accessor lp:last-line))
+              :accessor lp:last-line)
+   (current-line :initform nil
+                 :accessor lp:current-line))
   :documentation "Base class for defining a buffer syntax, which
   instance shall be buffer-local.  It contains a double-linked
   list of lines, containing the parsed forms on each line of the
@@ -265,13 +267,68 @@ from current point up to the end of the current line."
         finally return (values result new-parser-state)))
 
 ;;;
+;;; Parse search
+;;;
+
+(defun lp:find-lines (syntax position &optional length)
+  "Search parse lines covering the region starting from
+`position' and covering `length' (which defaults to 0). Return
+two values: the first and the last parse line."
+  ;; Compare the region position with the syntax current line (its
+  ;; previously modified line, saved for quicker access), the first
+  ;; line and the last line, to determine from which end start the
+  ;; search.
+  (let ((end-position (+ position (or length 0))))
+    (multiple-value-bind (search-type from-line)
+        (let ((current-line (lp:current-line syntax)))
+          (if current-line
+              (let* ((point-0/4 (point-min))
+                     (point-4/4 (point-max))
+                     (point-2/4 (lp:marker current-line))
+                     (point-1/4 (/ (- point-2/4 point-0/4) 2))
+                     (point-3/4 (/ (+ point-2/4 point-4/4) 2)))
+                (cond ((<= point-3/4 end-position)
+                       (values 'backward (lp:last-line syntax)))
+                      ((<= position point-1/4)
+                       (values 'forward (lp:first-line syntax)))
+                      ((and (<= point-2/4 position) (<= position point-3/4))
+                       (values 'forward current-line))
+                      ((and (<= point-1/4 end-position) (<= end-position point-2/4))
+                       (values 'backward current-line))
+                      (t ;; (<= point-1/4 position point-1/2 end-position point-3/4)
+                       (values 'both current-line))))
+              (let* ((point-1/2 (/ (+ (point-max) (point-min)) 2)))
+                (if (>= end-position point-1/2)
+                    (values 'backward (lp:last-line syntax))
+                    (values 'forward (lp:first-line syntax))))))
+      (case search-type
+        ((forward) ;; forward search from `from-line'
+         (loop for line = from-line then (lp:next-line line)
+               with first-found-line = nil
+               if (and (not first-found-line)
+                       (<= (lp:marker line) position))
+               do (setf first-found-line line)
+               if (< (lp:marker line) end-position) return (values (or first-found-line line) line)))
+        ((backward) ;; backward search from `from-line'
+         (loop for line = from-line then (lp:previous-line line)
+               with last-found-line = nil
+               if (and (not last-found-line)
+                       (< (lp:marker line) end-position))
+               do (setf last-found-line line)
+               if (<= (lp:marker line) position) return (values line (or last-found-line line))))
+        (t ;; search first line backward, and last-line forward from `from-line'
+         (values (loop for line = from-line then (lp:previous-line)
+                       if (<= (lp:marker line) position) return line)
+                 (loop for line = from-line then (lp:next-line)
+                       if (< (lp:marker line) end-position) return line)))))))
+
+;;;
 ;;; Parse update
 ;;;
 
 (defun lp:parse-and-highlight-buffer ()
-  "Make a full parse of current buffer and highlight text.
-Set current syntax parse data (`first-line' and `last-line'
-slots)."
+  "Make a full parse of current buffer and highlight text.  Set
+current syntax parse data (`first-line' and `last-line' slots)."
   ;; prevent after-change-functions (i.e. lp:parse-update)
   ;; from being called
   (let ((after-change-functions nil)
@@ -296,78 +353,53 @@ and fontify the changed text.
   `end' is the end of the changed text.
   `length' is the length the pre-changed text."
   (let ((syntax (lp:current-syntax)))
-    (cond ((not (lp:first-line syntax))
-           (lp:parse-and-highlight-buffer))
-          (t
-           ;; find the portion of the parse-tree that needs an update
-           (multiple-value-bind (first-modified-line last-modified-line)
-               ;; TODO: from top or from bottom, depending on position
-               ;; of the modified region
-               ;;
-               ;; from bottom:
-               ;; the first modified line is found as soon as
-               ;; (<= (lyqi-marker line) beginning)
-               ;; the last modified line is found as soon as
-               ;; (< (lp:marker line) old-end)
-               (loop for line = (lp:last-line syntax)
-                     then (lp:previous-line line)
-                     with old-end = (+ beginning old-length)
-                     with first-modified-line = nil
-                     with last-modified-line = nil
-                     if (and (not last-modified-line)
-                             (< (lp:marker line) old-end))
-                     do (setf last-modified-line line)
-                     if (<= (lp:marker line) beginning)
-                     do (setf first-modified-line line)
-                     and return (values first-modified-line last-modified-line)
-                     finally return (values first-modified-line last-modified-line))
-             (save-excursion
-               (let ((end-position (progn
-                                     (goto-char end)
-                                     (point-at-eol))))
-                 (goto-char beginning)
-                 (forward-line 0)
-                 (multiple-value-bind (first-new-line last-new-line next-state0)
-                     (lp:parse syntax
-                               :parser-state (slot-value first-modified-line 'parser-state)
-                               :end-position end-position)
-                   ;; fontify new lines
-                   (loop for line = first-new-line then (lp:next-line line)
-                         while line
-                         do (mapcar #'lp:fontify (lp:line-forms line)))
-                   ;; replace the old lines with the new ones in the
-                   ;; double-linked list
-                   (if (eql (lp:first-line syntax) first-modified-line)
-                       (set-slot-value syntax 'first-line first-new-line)
-                       (lp:link-lines (lp:previous-line first-modified-line)
-                                      first-new-line))
-                   (if (eql (lp:last-line syntax) last-modified-line)
-                       (set-slot-value syntax 'last-line last-new-line)
-                       (lp:link-lines last-new-line
-                                      (lp:next-line last-modified-line)))
-                   ;; If the lexer state at the end of last-new-line is
-                   ;; different from the lexer state at the beginning of
-                   ;; the next line, then parse next line again (and so
-                   ;; on)
-                   (loop for line = (lp:next-line last-new-line)
-                         then (lp:next-line line)
-                         for new-state = next-state0 then next-state
-                         while (and line
-                                    (not (lp:same-parser-state-p
-                                          new-state (slot-value line 'parser-state))))
-                         for (forms next-state) = (lp:parse-line syntax new-state)
-                         do (progn
-                              (set-slot-value line 'forms forms)
-                              (set-slot-value line 'parser-state new-state)
-                              (lp:fontify line)
-                              (forward-line 1)))
-                   ;; debug
-                   ;;(princ (format "Parse update [%s-%s] [%s-%s]"
-                   ;;               beginning end
-                   ;;               (marker-position (lp:marker first-modified-line))
-                   ;;               (marker-position (lp:marker last-modified-line))))
-                   ))))))))
-
+    (if (not (lp:first-line syntax))
+        (lp:parse-and-highlight-buffer)
+        ;; find the portion of the parse-tree that needs an update
+        (multiple-value-bind (first-modified-line last-modified-line)
+            (lp:find-lines syntax beginning old-length)
+          (save-excursion
+            (let ((end-position (progn
+                                  (goto-char end)
+                                  (point-at-eol))))
+              (goto-char beginning)
+              (forward-line 0)
+              ;; re-parse the modified lines
+              (multiple-value-bind (first-new-line last-new-line next-state0)
+                  (lp:parse syntax
+                            :parser-state (slot-value first-modified-line 'parser-state)
+                            :end-position end-position)
+                ;; fontify new lines
+                (loop for line = first-new-line then (lp:next-line line)
+                      while line
+                      do (mapcar #'lp:fontify (lp:line-forms line)))
+                ;; replace the old lines with the new ones in the
+                ;; double-linked list
+                (if (eql (lp:first-line syntax) first-modified-line)
+                    (set-slot-value syntax 'first-line first-new-line)
+                    (lp:link-lines (lp:previous-line first-modified-line)
+                                   first-new-line))
+                (if (eql (lp:last-line syntax) last-modified-line)
+                    (set-slot-value syntax 'last-line last-new-line)
+                    (lp:link-lines last-new-line
+                                   (lp:next-line last-modified-line)))
+                ;; Update the syntax `current-line', from quick access
+                (set-slot-value syntax 'current-line last-modified-line)
+                ;; If the lexer state at the end of last-new-line is
+                ;; different from the lexer state at the beginning of
+                ;; the next line, then parse next line again (and so
+                ;; on)
+                (loop for line = (lp:next-line last-new-line) then (lp:next-line line)
+                      for new-state = next-state0 then next-state
+                      while (and line
+                                 (not (lp:same-parser-state-p
+                                       new-state (slot-value line 'parser-state))))
+                      for (forms next-state) = (lp:parse-line syntax new-state)
+                      do (progn
+                           (set-slot-value line 'forms forms)
+                           (set-slot-value line 'parser-state new-state)
+                           (lp:fontify line)
+                           (forward-line 1))))))))))
 
 ;;;
 ;;; Fontification
