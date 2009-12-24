@@ -146,6 +146,18 @@
 (defclass lp:negation-char-lexeme (lp:lexeme) ())
 (defclass lp:preprocessor-lexeme (lp:lexeme) ())
 
+(defclass lp:delimiter-lexeme (lp:lexeme) ())
+(defclass lp:opening-delimiter-lexeme (lp:delimiter-lexeme) ())
+(defclass lp:closing-delimiter-lexeme (lp:delimiter-lexeme) ())
+
+(defmethod lp:opening-delimiter-p ((this lp:parser-symbol))
+  nil)
+(defmethod lp:opening-delimiter-p ((this lp:opening-delimiter-lexeme))
+  t)
+(defmethod lp:closing-delimiter-p ((this lp:parser-symbol))
+  nil)
+(defmethod lp:closing-delimiter-p ((this lp:closing-delimiter-lexeme))
+  t)
 
 ;;; Parsing data (used when reducing lexemes to produce forms)
 (defclass lp:parser-state ()
@@ -304,11 +316,12 @@ two values: the first and the last parse line."
       (case search-type
         ((forward) ;; forward search from `from-line'
          (loop for line = from-line then (lp:next-line line)
-               with first-found-line = nil
-               if (and (not first-found-line)
-                       (<= (lp:marker line) position))
-               do (setf first-found-line line)
-               if (<= (lp:marker line) end-position) return (values (or first-found-line line) line)))
+               with first-line = nil
+               if (and (not first-line)
+                       (> (lp:marker line) position))
+               do (setf first-line (lp:previous-line line))
+               if (> (lp:marker line) end-position)
+               return (values first-line (lp:previous-line line))))
         ((backward) ;; backward search from `from-line'
          (loop for line = from-line then (lp:previous-line line)
                with last-found-line = nil
@@ -320,30 +333,33 @@ two values: the first and the last parse line."
          (values (loop for line = from-line then (lp:previous-line)
                        if (<= (lp:marker line) position) return line)
                  (loop for line = from-line then (lp:next-line)
-                       if (< (lp:marker line) end-position) return line)))))))
+                       if (< (lp:marker line) end-position) return (lp:previous-line line))))))))
 
 ;;;
 ;;; Parse update
 ;;;
 
+(defmacro lp:without-parse-update (&rest body)
+  `(let ((after-change-functions nil))
+     ,@body))
+(put 'lp:without-parse-update 'lisp-indent-function 0)
+
 (defun lp:parse-and-highlight-buffer ()
   "Make a full parse of current buffer and highlight text.  Set
 current syntax parse data (`first-line' and `last-line' slots)."
-  ;; prevent after-change-functions (i.e. lp:parse-update)
-  ;; from being called
-  (let ((after-change-functions nil)
-        (syntax (lp:current-syntax)))
-    ;; initialize the parse tree
-    (save-excursion
-      (goto-char (point-min))
-      (multiple-value-bind (first last state) (lp:parse syntax)
-        (set-slot-value syntax 'first-line first)
-        (set-slot-value syntax 'last-line last)))
-    ;; fontify the buffer
-    (loop for line = (lp:first-line syntax)
-          then (lp:next-line line)
-          while line
-          do (mapcar #'lp:fontify (lp:line-forms line)))))
+  (let ((syntax (lp:current-syntax)))
+    (lp:without-parse-update
+      ;; initialize the parse tree
+      (save-excursion
+        (goto-char (point-min))
+        (multiple-value-bind (first last state) (lp:parse syntax)
+          (set-slot-value syntax 'first-line first)
+          (set-slot-value syntax 'last-line last)))
+      ;; fontify the buffer
+      (loop for line = (lp:first-line syntax)
+            then (lp:next-line line)
+            while line
+            do (mapcar #'lp:fontify (lp:line-forms line))))))
 
 (defun lp:parse-update (beginning end old-length)
   "Update current syntax parse-tree after a buffer modification,
