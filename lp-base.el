@@ -75,13 +75,19 @@
    (forms :initarg :forms
           :accessor lp:line-forms)
    (parser-state :initform nil
-                :initarg :parser-state)
+                 :initarg :parser-state)
    (previous-line :initform nil
                   :initarg :previous-line
                   :accessor lp:previous-line)
    (next-line :initform nil
               :initarg :next-line
               :accessor lp:next-line)))
+
+(defmethod object-print ((this lp:line-parse) &rest strings)
+  (format "#<%s [%s] %s forms>"
+            (object-class this)
+            (marker-position (lp:marker this))
+            (length (lp:line-forms this))))
 
 (defun lp:link-lines (first next)
   (when first
@@ -254,7 +260,9 @@ Keywords supported:
           with first-line = nil
           for previous-line = nil then line
           for parser-state = cl-parser-state then next-parser-state
-          for marker = (point-marker)
+          for marker = (let ((marker (point-marker)))
+                         (set-marker-insertion-type marker nil)
+                         marker)
           for (forms next-parser-state) = (lp:parse-line syntax parser-state)
           for line = (make-instance 'lp:line-parse
                                     :marker marker
@@ -361,6 +369,19 @@ current syntax parse data (`first-line' and `last-line' slots)."
             while line
             do (mapcar #'lp:fontify (lp:line-forms line))))))
 
+(defun lp:update-line-if-different-parser-state (line parser-state)
+  (when (and line
+           (not (lp:same-parser-state-p
+                 parser-state
+                 (slot-value line 'parser-state))))
+    (multiple-value-bind (forms next-state)
+        (lp:parse-line syntax parser-state)
+      (set-slot-value line 'forms forms)
+      (set-slot-value line 'parser-state parser-state)
+      (lp:fontify line)
+      (forward-line 1)
+      (lp:update-line-if-different-parser-state (lp:next-line line) next-state))))
+
 (defun lp:parse-update (beginning end old-length)
   "Update current syntax parse-tree after a buffer modification,
 and fontify the changed text.
@@ -381,7 +402,7 @@ and fontify the changed text.
               (goto-char beginning)
               (forward-line 0)
               ;; re-parse the modified lines
-              (multiple-value-bind (first-new-line last-new-line next-state0)
+              (multiple-value-bind (first-new-line last-new-line next-state)
                   (lp:parse syntax
                             :parser-state (slot-value first-modified-line 'parser-state)
                             :end-position end-position)
@@ -400,22 +421,14 @@ and fontify the changed text.
                     (lp:link-lines last-new-line
                                    (lp:next-line last-modified-line)))
                 ;; Update the syntax `current-line', from quick access
-                (set-slot-value syntax 'current-line last-modified-line)
+                (set-slot-value syntax 'current-line last-new-line)
                 ;; If the lexer state at the end of last-new-line is
                 ;; different from the lexer state at the beginning of
                 ;; the next line, then parse next line again (and so
                 ;; on)
-                (loop for line = (lp:next-line last-new-line) then (lp:next-line line)
-                      for new-state = next-state0 then next-state
-                      while (and line
-                                 (not (lp:same-parser-state-p
-                                       new-state (slot-value line 'parser-state))))
-                      for (forms next-state) = (lp:parse-line syntax new-state)
-                      do (progn
-                           (set-slot-value line 'forms forms)
-                           (set-slot-value line 'parser-state new-state)
-                           (lp:fontify line)
-                           (forward-line 1))))))))))
+                (lp:update-line-if-different-parser-state
+                 (lp:next-line last-new-line)
+                 next-state))))))))
 
 ;;;
 ;;; Fontification
