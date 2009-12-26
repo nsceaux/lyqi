@@ -328,13 +328,13 @@ two values: the first and the last parse line."
                if (and (not first-line)
                        (> (lp:marker line) position))
                do (setf first-line (lp:previous-line line))
-               if (> (lp:marker line) end-position)
-               return (values first-line (lp:previous-line line))))
+               if (>= (lp:marker line) end-position)
+               return (values (or first-line line) (lp:previous-line line))))
         ((backward) ;; backward search from `from-line'
          (loop for line = from-line then (lp:previous-line line)
                with last-found-line = nil
                if (and (not last-found-line)
-                       (<= (lp:marker line) end-position))
+                       (< (lp:marker line) end-position))
                do (setf last-found-line line)
                if (<= (lp:marker line) position) return (values line (or last-found-line line))))
         (t ;; search first line backward, and last-line forward from `from-line'
@@ -369,7 +369,7 @@ current syntax parse data (`first-line' and `last-line' slots)."
             while line
             do (mapcar #'lp:fontify (lp:line-forms line))))))
 
-(defun lp:update-line-if-different-parser-state (line parser-state)
+(defun lp:update-line-if-different-parser-state (line parser-state syntax)
   (when (and line
            (not (lp:same-parser-state-p
                  parser-state
@@ -380,7 +380,7 @@ current syntax parse data (`first-line' and `last-line' slots)."
       (set-slot-value line 'parser-state parser-state)
       (lp:fontify line)
       (forward-line 1)
-      (lp:update-line-if-different-parser-state (lp:next-line line) next-state))))
+      (lp:update-line-if-different-parser-state (lp:next-line line) next-state syntax))))
 
 (defun lp:parse-update (beginning end old-length)
   "Update current syntax parse-tree after a buffer modification,
@@ -427,8 +427,14 @@ and fontify the changed text.
                 ;; the next line, then parse next line again (and so
                 ;; on)
                 (lp:update-line-if-different-parser-state
-                 (lp:next-line last-new-line)
-                 next-state))))))))
+                 (lp:next-line last-new-line) next-state syntax)
+                ;; debug
+                (princ (format "old: [%s-%s] new: [%s-%s]"
+                               (marker-position (lp:marker first-modified-line))
+                               (marker-position (lp:marker last-modified-line))
+                               (marker-position (lp:marker first-new-line))
+                               (marker-position (lp:marker last-new-line))))
+                )))))))
 
 ;;;
 ;;; Fontification
