@@ -28,6 +28,11 @@
   (and (call-next-method)
        (= (slot-value this 'depth) (slot-value other-state 'depth))))
 
+(defmethod lyqi:scheme-state-p ((this lp:parser-state))
+  nil)
+(defmethod lyqi:scheme-state-p ((this lyqi:scheme-list-parser-state))
+  t)
+
 (defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state) ())
 
 ;;;
@@ -385,45 +390,48 @@
 
 (defmethod lp:lex ((parser-state lyqi:incomplete-chord-parser-state) syntax)
   (lyqi:skip-whitespace)
-  (cond ((eolp)
-         ;; at end of line, reduce remaining lexemes to produce an
-         ;; incomplete chord form
-         (values parser-state
-                 (if (slot-value parser-state 'lexemes)
-                     (list (lp:reduce-lexemes parser-state 'lyqi:incomplete-chord-form)))
-                 nil))
-        ;; a note
-        ((looking-at (slot-value syntax 'note-regex))
-         (lp:push-lexeme parser-state (lyqi:lex-note syntax))
-         (values parser-state
-                 nil
-                 t))
-        ;; at chord end '>', switch to {duration?} state
-        ((eql (char-after) ?\>)
-         (let ((marker (point-marker)))
-           (forward-char 1)
-           (lp:push-lexeme parser-state
-                           (make-instance 'lyqi:chord-end-lexeme
-                                          :marker marker
-                                          :size (- (point) marker)))
-           (values (lp:change-parser-state parser-state 'lyqi:duration?-parser-state)
+  (labels ((reduce-lexemes
+            (&rest additional-forms)
+            (remove-if-not #'identity (cons (lp:reduce-lexemes parser-state 'lyqi:incomplete-chord-form)
+                                            additional-forms))))
+    (cond ((eolp)
+           ;; at end of line, reduce remaining lexemes to produce an
+           ;; incomplete chord form
+           (values parser-state
+                   (reduce-lexemes)
+                   nil))
+          ;; a note
+          ((looking-at (slot-value syntax 'note-regex))
+           (lp:push-lexeme parser-state (lyqi:lex-note syntax))
+           (values parser-state
                    nil
-                   t)))
-        ;; a comment
-        ((looking-at "%+")
-         (values (make-instance 'lyqi:line-comment-parser-state
-                                :next-parser-state parser-state
-                                :lexemes (list (lyqi:lex-comment-start syntax))
-                                :form-class 'lyqi:line-comment-form)
-                 (list (lp:reduce-lexemes parser-state 'lyqi:incomplete-chord-form))
-                 t))
-        ;; something else
-        (t
-         (lp:push-lexeme parser-state
-                         (lyqi:lex-verbatim syntax "[^ \t\r\n>]+"))
-         (values parser-state
-                 nil
-                 t))))
+                   t))
+          ;; at chord end '>', switch to {duration?} state
+          ((eql (char-after) ?\>)
+           (let ((marker (point-marker)))
+             (forward-char 1)
+             (lp:push-lexeme parser-state
+                             (make-instance 'lyqi:chord-end-lexeme
+                                            :marker marker
+                                            :size (- (point) marker)))
+             (values (lp:change-parser-state parser-state 'lyqi:duration?-parser-state)
+                     nil
+                     t)))
+          ;; a comment
+          ((looking-at "%+")
+           (values (make-instance 'lyqi:line-comment-parser-state
+                                  :next-parser-state parser-state
+                                  :lexemes (list (lyqi:lex-comment-start syntax))
+                                  :form-class 'lyqi:line-comment-form)
+                   (reduce-lexemes)
+                   t))
+          ;; something else
+          (t
+           (lp:push-lexeme parser-state
+                           (lyqi:lex-verbatim syntax "[^ \t\r\n>]+"))
+           (values parser-state
+                   nil
+                   t)))))
 
 ;;;
 ;;; Basic scheme lexing
