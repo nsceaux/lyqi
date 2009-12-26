@@ -295,7 +295,7 @@
                      (values (make-instance 'lyqi:scheme-list-parser-state
                                             :next-parser-state parser-state)
                              (reduce-lexemes sharp-lexeme
-                                             (make-instance 'lyqi:right-parenthesis-lexeme
+                                             (make-instance 'lyqi:left-parenthesis-lexeme
                                                             :marker marker
                                                             :size size))
                              (not (eolp))))

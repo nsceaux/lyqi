@@ -69,9 +69,50 @@
                             (t previous-indent))))
                (t 0)))))
 
-(defun lyqi:indent-scheme-line (line)
+(defun lyqi:offset-from-bol (pos)
+  (save-excursion
+    (goto-char pos)
+    (forward-line 0)
+    (- pos (point))))
+
+(defun lyqi:indent-scheme-line (indent-line)
   "Return the indentation of a line of Scheme code"
-  0)
+  ;; find opening ( enclosing the first token
+  (loop with depth = 0
+        with upper-paren = nil
+        with in-embedded-lilypond = nil
+        with previous-forms = nil
+        for (form line rest-forms) = (lp:previous-form indent-line)
+        then (lp:previous-form line rest-forms)
+        while form
+        if (object-of-class-p form 'lyqi:embedded-lilypond-end-lexeme)
+        do (setf in-embedded-lilypond t)
+        else if (object-of-class-p form 'lyqi:embedded-lilypond-start-lexeme)
+        do (setf in-embedded-lilypond nil)
+        else if (and (not in-embedded-lilypond) (lp:closing-delimiter-p form))
+        do (incf depth)
+        else if (and (not in-embedded-lilypond) (lp:opening-delimiter-p form))
+        do (if (> depth 0)
+               (decf depth)
+               ;; opening paren is found
+               (setf upper-paren form))
+        else if (and (not in-embedded-lilypond)
+                     (object-of-class-p form 'lyqi:sharp-lexeme))
+        return (+ (lyqi:offset-from-bol (lp:marker form))
+                  (lp:size form))
+        ;; collect previous forms which have the same level as the
+        ;; first token of the indent line
+        if (and (not upper-paren)
+                (= depth 0)
+                (object-of-class-p form 'lyqi:scheme-lexeme))
+        do (push form previous-forms)
+        ;; TODO: take into account define, let, do, etc
+        if upper-paren return (cond ((cdr previous-forms)
+                                     (lyqi:offset-from-bol (lp:marker (second previous-forms))))
+                                    (previous-forms
+                                     (lyqi:offset-from-bol (lp:marker (first previous-forms))))
+                                    (t
+                                     (1+ (lyqi:offset-from-bol (lp:marker upper-paren)))))))
 
 (defun lyqi:indent-line ()
   "Indent current line."

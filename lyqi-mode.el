@@ -114,11 +114,15 @@
   (kill-all-local-variables)
   (setq major-mode 'lyqi-mode)
   (setq mode-name "Lyqi")
-  ;; local variables
+  ;; indentation
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'lyqi:indent-line)
+  ;; before and after change function (for parse update)
+  (make-local-variable 'before-change-functions)
   (make-local-variable 'after-change-functions)
+  (pushnew 'lp:before-parse-update before-change-functions)
   (setq after-change-functions '(lp:parse-update))
+  ;; 
   (make-local-variable 'lp:*current-syntax*)
   (let* ((previous-syntax lp:*current-syntax*)
          (language (or (and previous-syntax
