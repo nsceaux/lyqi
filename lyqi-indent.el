@@ -6,154 +6,191 @@
 ;;; See http://nicolas.sceaux.free.fr/lilypond/
 
 (require 'lp-base)
+(require 'lyqi-syntax)
 
 (defvar lyqi:indent-level 2)
 
-(defun lyqi:indent-lilypond-line (line)
-  "Return the indentation of a line of LilyPond code"
-  (let* ((previous-line (loop for previous-line = (lp:previous-line line)
-                              then (lp:previous-line previous-line)
-                              while previous-line
-                              if (lp:line-forms previous-line) return previous-line))
-         (previous-indent (if previous-line
-                              (save-excursion
-                                (goto-char (lp:marker previous-line))
-                                (forward-line 0)
-                                (skip-chars-forward " \t"))
-                              0)))
-    (max 0
-         (cond ((and (lp:line-forms line)
-                     (lp:closing-delimiter-p (first (lp:line-forms line))))
-                ;; `line' starts with a closing delimiter.  If the
-                ;; matching opening delimiter is on previous line,
-                ;; then use the same indentation as previous line.
-                ;; Otherwise, decrease indentation.
-                (loop for form in (and previous-line
-                                       (reverse (lp:line-forms previous-line)))
-                      if (lp:opening-delimiter-p form) return previous-indent
-                      finally return (- previous-indent lyqi:indent-level)))
-               (previous-line
-                (loop with all-forms = (lp:line-forms previous-line)
-                      with first-form = (first all-forms)
-                      with opening-delimiters = nil
-                      with closing-delimiters = nil
-                      with following-forms = nil
-                      for forms on all-forms
-                      for form = (first forms)
-                      if (lp:opening-delimiter-p form)
-                      do (progn
-                           (push form opening-delimiters)
-                           (push (second forms) following-forms))
-                      if (lp:closing-delimiter-p form) 
-                      do (cond (opening-delimiters
-                                (pop opening-delimiters)
-                                (pop following-forms))
-                               ((not (eql form first-form))
-                                (push form closing-delimiters)))
-                      finally return
-                      (cond ((and following-forms (first following-forms))
-                             ;; return the offset of the token following
-                             ;; the last non closed opening delimiter
-                             (- (lp:marker (first following-forms))
-                                (lp:marker previous-line)))
-                            (opening-delimiters
-                             ;; previous line ends with an opening
-                             ;; delimiter
-                             (+ previous-indent
-                                (* lyqi:indent-level
-                                   (- (length opening-delimiters)
-                                      (length closing-delimiters)))))
-                            (closing-delimiters
-                             (- previous-indent
-                                (* lyqi:indent-level (length closing-delimiters))))
-                            (t previous-indent))))
-               (t 0)))))
-
 (defun lyqi:offset-from-bol (token)
+  "Return the number of columns from the beginning of the line
+where `token' is placed, to `token'"
   (save-excursion
     (goto-char (lp:marker token))
     (forward-line 0)
     (- (lp:marker token) (point))))
 
-(defun lyqi:calc-indent-after (paren-form next-forms)
-  (let* ((first-form (first next-forms))
-         (rest-forms (rest next-forms))
-         (string (and first-form
-                      (object-of-class-p first-form
-                                         'lyqi:scheme-symbol-lexeme)
-                      (lp:string first-form)))
-         (symbol (and string (intern string)))
-         (nb-special-args (if symbol
-                              ;; TODO
-                              (case symbol
-                                ((define-markup-command) 6)
-                                ((lambda let define) 1)
-                                (t 0))
-                              0))
-         (next-is-special (< (length rest-forms) nb-special-args)))
-    (cond ((and next-is-special rest-forms)
-           ;; align with first special arg
-           (lyqi:offset-from-bol (first rest-forms)))
-          (next-is-special
-           ;; first special arg, on a new line: add 2 indent levels
-           (+ (lyqi:offset-from-bol paren-form)
-              (* 2 lyqi:indent-level)))
-          (rest-forms
-           ;; align with first macro/function argument
-           (lyqi:offset-from-bol (first rest-forms)))
-          (first-form
-           ;; align with the list first form
-           (lyqi:offset-from-bol first-form))
-          (t
-           ;; align on the next column of paren
-           (1+ (lyqi:offset-from-bol paren-form))))))
+(defun lyqi:indent-line ()
+  "Indent current line."
+  (interactive)
+  (lp:without-parse-update
+    (let (final-position)
+      (save-excursion
+        (forward-line 0)
+        (let* ((syntax (lp:current-syntax))
+               (line (first (lp:find-lines syntax (point-marker)))))
+          (indent-line-to (max 0
+                               (if (or (lyqi:scheme-state-p (slot-value line 'parser-state))
+                                       (and (lp:line-forms line)
+                                            (object-of-class-p (first (lp:line-forms line))
+                                                               'lyqi:embedded-lilypond-end-lexeme)))
+                                   (lyqi:scheme-line-indentation line)
+                                   (lyqi:lilypond-line-indentation line))))
+          ;; reparse the line
+          ;; FIXME: why markers are not automatically updated?
+          (lp:reparse-line syntax line)
+          (setf final-position (point))))
+      (when (< (point) final-position)
+        (goto-char final-position)))))
 
-(defun lyqi:indent-scheme-line (indent-line)
-  "Return the indentation of a line of Scheme code"
-  ;; find opening ( enclosing the first token
+;; (defun lyqi:indent-region (start end)
+;;   (save-excursion
+;;     (loop with prev-lilypond-line = nil
+;;           with prev-embedded-lilypond-line = nil
+;;           with prev-scheme-line = nil
+;;           with prev-embedded-scheme-line = nil
+;;           with (first last) = (lp:find-lines (lp:current-syntax) start end)
+;;           for line = first then (lp:next-line line)
+;;           while (not (eql line
+;;           then (lp:next-line line)
+          
+;;         for line-forms = (lp:line-forms line)
+;;         for this-indent = nil then (if (and forms (lp:closing-delimiter-p (first forms)))
+;;                                        (if opened-blocks
+;;                                            (lyqi:offset-from-bol (caar opened-blocks))
+;;                                            (- this-indent lyqi:indent-region))
+;;                                        next-indent)
+;;         for next-indent = (loop for forms on line-forms
+;;                                 for form = (first forms)
+;;                                 if (lp:opening-delimiter-p form)
+;;                                 do (push (cons form (second forms)) opened-blocks)
+;;                                 else if (lp:closing-delimiter-p form)
+;;                                 do (if opened-blocks
+;;                                        (pop opened-blocks)
+;;                                        (push form closed-blocks))
+;;                                 finally return
+;;                                 (cond ((and opened-blocks (cdar opened-blocks))
+;;                                        (lyqi:offset-from-bol (cdar opened-blocks)))
+;;                                       ((or opened-blocks closed-blocks)
+;;                                        (+ this-indent
+;;                                           (* lyqi:indent-level
+;;                                              (- (length opened-blocks)
+;;                                                 (length closed-blocks)))))
+;;                                       (t this-indent)))
+;;         do ...)))
+
+(defun lyqi:sexp-beginning (indent-line)
+  "Return two values: the opening parenthesis and the first forms,
+if any, of the s-expression containing `indent-line' beginning."
   (loop with depth = 0
-        with upper-paren = nil
-        with in-embedded-lilypond = nil
-        with previous-forms = nil
+        with sexp-forms = nil
+        with in-scheme = t
         for (form line rest-forms) = (lp:previous-form indent-line)
         then (lp:previous-form line rest-forms)
         while form
         if (object-of-class-p form 'lyqi:embedded-lilypond-end-lexeme)
-        do (setf in-embedded-lilypond t)
-        else if (object-of-class-p form 'lyqi:embedded-lilypond-start-lexeme)
-        do (setf in-embedded-lilypond nil)
-        else if (and (not in-embedded-lilypond) (lp:closing-delimiter-p form))
+        do (setf in-scheme nil)
+        if (object-of-class-p form 'lyqi:embedded-lilypond-start-lexeme)
+        do (setf in-scheme t)
+        if (and in-scheme (lp:closing-delimiter-p form))
         do (incf depth)
-        else if (and (not in-embedded-lilypond) (lp:opening-delimiter-p form))
-        do (if (> depth 0)
-               (decf depth)
-               ;; opening paren is found
-               (setf upper-paren form))
-        else if (and (not in-embedded-lilypond)
-                     (object-of-class-p form 'lyqi:sharp-lexeme))
-        return (+ (lyqi:offset-from-bol (lp:marker form))
-                  (lp:size form))
-        ;; collect previous forms which have the same level as the
-        ;; first token of the indent line
-        if (and (not upper-paren)
-                (= depth 0)
-                (object-of-class-p form 'lyqi:scheme-lexeme))
-        do (push form previous-forms)
-        ;; TODO: take into account define, let, do, etc
-        if upper-paren return (lyqi:calc-indent-after upper-paren previous-forms)))
+        else if (and in-scheme (lp:opening-delimiter-p form))
+        do (cond ((> depth 1)
+                  (decf depth))
+                 ((= depth 1)
+                  (decf depth)
+                  (push form sexp-forms))
+                 (t
+                  ;; s-expr starting left parenthesis is found
+                  (return (values form sexp-forms))))
+        else if (and in-scheme (= depth 0))
+        do (push form sexp-forms)))
 
-(defun lyqi:indent-line ()
-  "Indent current line."
-  (interactive)
-  (let ((line (first (lp:find-lines (lp:current-syntax) (point)))))
-    (lp:without-parse-update
-      (let ((final-position (save-excursion
-                              (forward-line 0)
-                              (indent-line-to (if (lyqi:scheme-state-p (slot-value line 'parser-state))
-                                                  (lyqi:indent-scheme-line line)
-                                                  (lyqi:indent-lilypond-line line)))
-                              (point))))
-        (when (< (point) final-position)
-          (goto-char final-position))))))
+(defun lyqi:scheme-operator-special-arg-number (operator-form first-args indent-line-first-form)
+  "Tell how many special argument (which indentation is different
+from other arguments) an operator has.  For instance, `lambda' has
+one special argument (its lambda list):
+  (lambda (args...)
+    ..body..)
+For a function, return NIL: all arguments shall be treated as
+regular function arguments.
+For a macro with no special argument (like `begin'), return 0.
+The result for a macro may depend on its arguments, for instance in the
+case of optional keyword arguments."
+  (let* ((string (lp:string operator-form))
+         (symbol (intern string)))
+    (case symbol
+      ((define-markup-command) 6)
+      ((lambda let define) 1)
+      ((begin) 0)
+      (t nil))))
+
+(defun lyqi:scheme-line-indentation (indent-line)
+  "Compute the indentation of a scheme line.  Returns a number of
+spaces from the beginning of the line.
+
+`indent-line': line-parse object corresponding to the line to be
+indented."
+  (multiple-value-bind (sexp-paren sexp-forms)
+      (lyqi:sexp-beginning indent-line)
+    (if (first sexp-forms)
+        ;; line to be indented starts with a function or macro
+        ;; argument, or with an element of a literal list (but not
+        ;; the first one)
+        (let* ((first-form (first sexp-forms))
+               (operator-form (and (object-of-class-p first-form 'lyqi:scheme-symbol-lexeme)
+                                   first-form))
+               (arg-forms (rest sexp-forms))
+               (special-args (and operator-form
+                                  (lyqi:scheme-operator-special-arg-number
+                                   operator-form
+                                   arg-forms
+                                   (first (lp:line-forms indent-line)))))
+               (next-arg-is-special (and special-args
+                                         (> (- special-args (length arg-forms)) 0))))
+          (cond (next-arg-is-special
+                 (+ (lyqi:offset-from-bol sexp-paren) (* 2 lyqi:indent-level)))
+                (special-args
+                 (+ (lyqi:offset-from-bol sexp-paren) lyqi:indent-level))
+                (arg-forms
+                 (lyqi:offset-from-bol (first arg-forms)))
+                (operator-form
+                 (lyqi:offset-from-bol operator-form))
+                (t
+                 (+ (lyqi:offset-from-bol sexp-paren) (lp:size sexp-paren)))))
+        ;; line to be indented starts with the list first form
+        (+ (lyqi:offset-from-bol sexp-paren) (lp:size sexp-paren)))))
+
+(defun lyqi:line-start-with-closing-delimiter (line)
+  (and (lp:line-forms line)
+       (lp:closing-delimiter-p (first (lp:line-forms line)))))
+
+;; As a start, make things easy: use previous non-empty line
+;; indentation, and account for nesting level compared to the
+;; beginning of this line
+(defun lyqi:lilypond-line-indentation (indent-line)
+  (loop with nesting-level = (if (lyqi:line-start-with-closing-delimiter indent-line)
+                                 -1
+                                 0)
+        with embedded-lilypond = (lyqi:embedded-lilypond-state-p (slot-value indent-line 'parser-state))
+        with in-lilypond = t
+        for line = (lp:previous-line indent-line) then (lp:previous-line line)
+        while line
+        for prev-indent = (loop for forms on (reverse (lp:line-forms line))
+                                for form = (first forms)
+                                for is-last-form = (not (rest forms))
+                                if (and embedded-lilypond
+                                        (object-of-class-p form 'lyqi:embedded-lilypond-start-lexeme))
+                                return lyqi:indent-level
+                                if (and in-lilypond (object-of-class-p form 'lyqi:scheme-lexeme))
+                                do (setf in-lilypond nil)
+                                if (and (not in-lilypond) (object-of-class-p form 'lyqi:sharp-lexeme))
+                                do (setf in-lilypond t)
+                                if (and in-lilypond (lp:opening-delimiter-p form))
+                                do (incf nesting-level)
+                                if (and in-lilypond (lp:closing-delimiter-p form) (not is-last-form))
+                                do (decf nesting-level)
+                                if (and in-lilypond is-last-form)
+                                return (lyqi:offset-from-bol form))
+        if prev-indent return (+ prev-indent
+                                 (* nesting-level lyqi:indent-level))))
 
 (provide 'lyqi-indent)

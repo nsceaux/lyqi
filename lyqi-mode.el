@@ -117,6 +117,8 @@
   ;; indentation
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'lyqi:indent-line)
+  (make-local-variable 'indent-region-function)
+  (setq indent-region-function 'lyqi:indent-region)
   ;; before and after change function (for parse update)
   (make-local-variable 'before-change-functions)
   (make-local-variable 'after-change-functions)
@@ -136,3 +138,5 @@
   (lp:parse-and-highlight-buffer)
   ;; header line shows info on lyqi mode
   (lyqi:set-header-line-format))
+
+(provide 'lyqi-mode)

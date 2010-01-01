@@ -35,6 +35,12 @@
 
 (defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state) ())
 
+(defmethod lyqi:embedded-lilypond-state-p ((this lp:parser-state))
+  (and (lp:next-parser-state this)
+       (lyqi:embedded-lilypond-state-p this)))
+(defmethod lyqi:embedded-lilypond-state-p ((this lyqi:embedded-toplevel-parser-state))
+  t)
+
 ;;;
 ;;; LilyPond syntax (language dependent)
 ;;;
@@ -291,24 +297,28 @@
              (let ((sharp-lexeme (make-instance 'lyqi:sharp-lexeme
                                                 :marker marker
                                                 :size size)))
-               (if (looking-at "['`]?(")
-                   (lyqi:with-forward-match (marker size)
-                     ;; a list form
-                     (values (make-instance 'lyqi:scheme-list-parser-state
-                                            :next-parser-state parser-state)
-                             (reduce-lexemes sharp-lexeme
-                                             (make-instance 'lyqi:left-parenthesis-lexeme
-                                                            :marker marker
-                                                            :size size))
-                             (not (eolp))))
+               (cond ((eolp)
+                      (values parser-state
+                              (reduce-lexemes sharp-lexeme)
+                              nil))
+                     ((looking-at "['`$]?(")
+                      (lyqi:with-forward-match (marker size)
+                        ;; a list form
+                        (values (make-instance 'lyqi:scheme-list-parser-state
+                                               :next-parser-state parser-state)
+                                (reduce-lexemes sharp-lexeme
+                                                (make-instance 'lyqi:left-parenthesis-lexeme
+                                                               :marker marker
+                                                               :size size))
+                                (not (eolp)))))
                      ;; a simple token
-                     (lyqi:with-forward-match ("[^ \t\r\n]+" marker size)
-                       (values parser-state
-                               (reduce-lexemes sharp-lexeme
-                                               (make-instance 'lyqi:scheme-lexeme
-                                                              :marker marker
-                                                              :size size))
-                               (not (eolp))))))))
+                     ((lyqi:with-forward-match ("[^ \t\r\n]+" marker size)
+                        (values parser-state
+                                (reduce-lexemes sharp-lexeme
+                                                (make-instance 'lyqi:scheme-lexeme
+                                                               :marker marker
+                                                               :size size))
+                                (not (eolp)))))))))
           ;; a backslashed keyword, command or variable
           ((looking-at "\\\\[a-zA-Z]+")
            (lyqi:with-forward-match (marker size)
