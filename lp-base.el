@@ -66,6 +66,14 @@
 (defmethod object-print ((this lp:syntax) &rest strings)
   (format "#<%s>" (object-class this)))
 
+(defmethod lp:debug-display ((this lp:syntax) &optional indent)
+  (let ((indent (or indent 0)))
+    (loop for line = (lp:first-line this) then (lp:next-line line)
+          while line
+          do (lp:debug-display line (+ indent 2))
+          do (princ "\n"))
+    t))
+
 ;;;
 ;;; The "parse tree" of a buffer is represented as a double-linked
 ;;; list of lines, each line containing a list of forms, each form

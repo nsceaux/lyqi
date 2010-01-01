@@ -17,12 +17,16 @@
                       :initarg :embedded-lilypond
                       :accessor lyqi:embedded-lilypond-state-p)))
 
-(defclass lyqi:toplevel-parser-state (lyqi:lilypond-parser-state)
+(defclass lyqi:base-parser-state (lyqi:lilypond-parser-state)
   ((form-class :initform 'lyqi:verbatim-form)))
+
+(defclass lyqi:toplevel-parser-state (lyqi:base-parser-state) ())
+(defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state)
+  ((embedded-lilypond :initform t)))
 (defclass lyqi:duration?-parser-state (lyqi:lilypond-parser-state) ())
 (defclass lyqi:note-duration?-parser-state (lyqi:lilypond-parser-state) ())
 (defclass lyqi:note-rest?-parser-state (lyqi:lilypond-parser-state) ())
-(defclass lyqi:incomplete-chord-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:chord-parser-state (lyqi:base-parser-state) ())
 (defclass lyqi:line-comment-parser-state (lyqi:lilypond-parser-state) ())
 (defclass lyqi:string-parser-state (lyqi:lilypond-parser-state) ())
 
@@ -37,9 +41,6 @@
   nil)
 (defmethod lyqi:scheme-state-p ((this lyqi:scheme-list-parser-state))
   t)
-
-(defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state)
-  ((embedded-lilypond :initform t)))
 
 (defun lyqi:make-parser-state (class next-parser-state &rest initargs)
   (apply 'make-instance
@@ -188,9 +189,7 @@
   ((rest :initarg :rest
          :initform nil)))
 (defclass lyqi:rest-skip-etc-form (lyqi:music-form) ())
-(defclass lyqi:chord-form (lyqi:music-form) ())
 (defclass lyqi:chord-end-form (lyqi:music-form) ())
-(defclass lyqi:incomplete-chord-form (lp:form) ())
 
 (defclass lyqi:line-comment-form (lp:form) ())
 (defclass lyqi:multi-line-comment-form (lp:form) ())
@@ -212,137 +211,159 @@
        ,@body)))
 (put 'lyqi:with-forward-match 'lisp-indent-function 1)
 
-(defmethod lp:lex ((parser-state lyqi:toplevel-parser-state) syntax)
-  (labels ((reduce-lexemes
-            (&rest additional-forms)
-            (remove-if-not #'identity (cons (lp:reduce-lexemes parser-state)
-                                            additional-forms))))
-    (lyqi:skip-whitespace)
-    (cond ((eolp)
-           ;; at end of line, reduce remaining lexemes
-           (values parser-state (reduce-lexemes) nil))
-          ;; a note
-          ;; - reduce preceding verbatim lexemes (if any)
-          ;; - lex the note and add the lexeme to the output parse data
-          ;; - switch to {note-duration?} lexer state
-          ((looking-at (slot-value syntax 'note-regex))
-           (values (lyqi:make-parser-state 'lyqi:note-duration?-parser-state
-                                           parser-state
-                                           :form-class 'lyqi:simple-note-form
-                                           :lexemes (list (lyqi:lex-note syntax)))
-                   (reduce-lexemes)
-                   t))
-          ;; rest, mm-rest, skip or spacer
-          ;; - reduce preceding verbatim lexemes (if any)
-          ;; - lex the rest/skip/etc and add the lexeme to the output parse data
-          ;; - switch to {duration?} lexer state
-          ((looking-at (slot-value syntax 'rest-skip-regex))
-           (values (lyqi:make-parser-state 'lyqi:duration?-parser-state
-                                     parser-state
-                                     :form-class 'lyqi:rest-skip-etc-form
-                                     :lexemes (list (lyqi:lex-rest-skip-etc syntax)))
-                   (reduce-lexemes)
-                   t))
-          ;; block delimiters
-          ((looking-at "\\(<<\\|>>\\|{\\|}\\)")
-           (lyqi:with-forward-match (marker size)
-             (values parser-state
-                     (reduce-lexemes (make-instance (case (char-after marker)
-                                                      ((?\<) 'lyqi:simultaneous-start-lexeme)
-                                                      ((?\>) 'lyqi:simultaneous-end-lexeme)
-                                                      ((?\{) 'lyqi:sequential-start-lexeme)
-                                                      ((?\}) 'lyqi:sequential-end-lexeme))
-                                                    :marker marker
-                                                    :size size))
-                     (not (eolp)))))
-          ;; a chord start: '<'
-          ;; - reduce preceding verbatim lexemes (if any)
-          ;; - lex the chord start and add the lexeme to the output parse data
-          ;; - switch to {incomplete-chord} state
-          ((looking-at "<")
-           (lyqi:with-forward-match (marker size)
-             (values (lyqi:make-parser-state 'lyqi:incomplete-chord-parser-state
-                                             parser-state
-                                             :form-class 'lyqi:chord-form
-                                             :lexemes (list (make-instance 'lyqi:chord-start-lexeme
-                                                                           :marker marker
-                                                                           :size size)))
-                     (reduce-lexemes)
-                     t)))
-          ;; TODO: multi line comment
-          
-          ;; line comment
-          ;; - reduce preceding verbatim lexemes (if any)
-          ;; - lex the line-comment start and add the lexeme to the output parse data
-          ;; - switch to {line-comment} state
-          ((looking-at "%+")
-           (values (lyqi:make-parser-state 'lyqi:line-comment-parser-state
-                                           parser-state
-                                           :form-class 'lyqi:line-comment-form
-                                           :lexemes (list (lyqi:lex-comment-start syntax)))
-                   (reduce-lexemes)
-                   t))
-          ;; a one line string
-          ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*\"")
-           (lyqi:with-forward-match (marker size)
-             (values parser-state
-                     (reduce-lexemes (make-instance 'lyqi:string-lexeme
-                                                    :marker marker
-                                                    :size size))
-                     (not (eolp)))))
-          ;; a unterminated string
-          ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*$")
-           (lyqi:with-forward-match (marker size)
-             (values (lyqi:make-parser-state 'lyqi:string-parser-state
-                                             parser-state)
-                     (reduce-lexemes (make-instance 'lyqi:string-lexeme
-                                                    :marker marker
-                                                    :size size))
-                     nil)))
-          ;; a scheme form (has to be after strings)
-          ((looking-at "#")
-           (lyqi:with-forward-match (marker size)
-             (let ((sharp-lexeme (make-instance 'lyqi:sharp-lexeme
-                                                :marker marker
-                                                :size size)))
-               (cond ((eolp)
-                      (values parser-state
-                              (reduce-lexemes sharp-lexeme)
-                              nil))
-                     ((looking-at "['`$]?(")
-                      (lyqi:with-forward-match (marker size)
-                        ;; a list form
-                        (values (lyqi:make-parser-state 'lyqi:scheme-list-parser-state
-                                                        parser-state)
-                                (reduce-lexemes sharp-lexeme
-                                                (make-instance 'lyqi:left-parenthesis-lexeme
-                                                               :marker marker
-                                                               :size size))
-                                (not (eolp)))))
-                     ;; a simple token
-                     ((lyqi:with-forward-match ("[^ \t\r\n]+" marker size)
-                        (values parser-state
-                                (reduce-lexemes sharp-lexeme
-                                                (make-instance 'lyqi:scheme-lexeme
-                                                               :marker marker
-                                                               :size size))
-                                (not (eolp)))))))))
-          ;; a backslashed keyword, command or variable
-          ((looking-at "\\\\[a-zA-Z]+")
-           (lyqi:with-forward-match (marker size)
-             (values parser-state
-                     (reduce-lexemes (make-instance 'lp:keyword-lexeme
-                                                    :marker marker
-                                                    :size size))
-                     t)))
-          ;; other top level expressions are treated as verbatim
-          ;; - lex the verbatim word and add the lexeme to the output parse data
-          ;; - continue lexing in {toplevel} state
-          (t
-           (lp:push-lexeme parser-state (lyqi:lex-verbatim syntax))
+(defmethod lyqi:reduce-lexemes ((this lp:parser-state) &rest additional-forms)
+  (remove-if-not #'identity
+                 (cons (lp:reduce-lexemes this)
+                       additional-forms)))
+
+(defmethod lyqi:reduce-lexemes ((this lyqi:chord-parser-state) &rest additional-forms)
+  (let ((forms (nreverse (slot-value this 'lexemes))))
+    (set-slot-value this 'lexemes nil)
+    (if additional-forms
+        (nconc forms additional-forms)
+        forms)))
+
+(defmethod lp:lex ((parser-state lyqi:base-parser-state) syntax)
+  (lyqi:skip-whitespace)
+  (cond ((eolp)
+         ;; at end of line, reduce remaining lexemes
+         (values parser-state (lyqi:reduce-lexemes parser-state) nil))
+        ;; TODO: multi line comment
+        
+        ;; line comment
+        ;; - reduce preceding verbatim lexemes (if any)
+        ;; - lex the line-comment start and add the lexeme to the output parse data
+        ;; - switch to {line-comment} state
+        ((looking-at "%+")
+         (values (lyqi:make-parser-state 'lyqi:line-comment-parser-state
+                                         parser-state
+                                         :form-class 'lyqi:line-comment-form
+                                         :lexemes (list (lyqi:lex-comment-start syntax)))
+                 (lyqi:reduce-lexemes parser-state)
+                 t))
+        ;; a one line string
+        ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*\"")
+         (lyqi:with-forward-match (marker size)
            (values parser-state
-                   nil
-                   t)))))
+                   (lyqi:reduce-lexemes parser-state
+                                        (make-instance 'lyqi:string-lexeme
+                                                       :marker marker
+                                                       :size size))
+                   (not (eolp)))))
+        ;; a unterminated string
+        ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*$")
+         (lyqi:with-forward-match (marker size)
+           (values (lyqi:make-parser-state 'lyqi:string-parser-state
+                                           parser-state)
+                   (lyqi:reduce-lexemes parser-state
+                                        (make-instance 'lyqi:string-lexeme
+                                                       :marker marker
+                                                       :size size))
+                   nil)))
+        ;; a scheme form (has to be after strings)
+        ((looking-at "#")
+         (lyqi:with-forward-match (marker size)
+           (let ((sharp-lexeme (make-instance 'lyqi:sharp-lexeme
+                                              :marker marker
+                                              :size size)))
+             (cond ((eolp)
+                    (values parser-state
+                            (lyqi:reduce-lexemes parser-state sharp-lexeme)
+                            nil))
+                   ((looking-at "['`$]?(")
+                    (lyqi:with-forward-match (marker size)
+                      ;; a list form
+                      (values (lyqi:make-parser-state 'lyqi:scheme-list-parser-state
+                                                      parser-state)
+                              (lyqi:reduce-lexemes parser-state
+                                                   sharp-lexeme
+                                                   (make-instance 'lyqi:left-parenthesis-lexeme
+                                                                  :marker marker
+                                                                  :size size))
+                              (not (eolp)))))
+                   ;; a simple token
+                   ((lyqi:with-forward-match ("[^ \t\r\n]+" marker size)
+                      (values parser-state
+                              (lyqi:reduce-lexemes parser-state
+                                                   sharp-lexeme
+                                                   (make-instance 'lyqi:scheme-lexeme
+                                                                  :marker marker
+                                                                  :size size))
+                              (not (eolp)))))))))
+        ;; a backslashed keyword, command or variable
+        ((looking-at "\\\\[a-zA-Z]+")
+         (lyqi:with-forward-match (marker size)
+           (values parser-state
+                   (lyqi:reduce-lexemes parser-state
+                                        (make-instance 'lp:keyword-lexeme
+                                                       :marker marker
+                                                       :size size))
+                   t)))
+        ;; other top level expressions are treated as verbatim
+        ;; - lex the verbatim word and add the lexeme to the output parse data
+        ;; - continue lexing in {toplevel} state
+        (t
+         (lp:push-lexeme parser-state (lyqi:lex-verbatim syntax))
+         (values parser-state
+                 nil
+                 t))))
+
+(defmethod lp:lex ((parser-state lyqi:toplevel-parser-state) syntax)
+  (lyqi:skip-whitespace)
+  (cond ((eolp)
+         ;; at end of line, reduce remaining lexemes
+         (values parser-state (lyqi:reduce-lexemes parser-state) nil))
+        ;; a note
+        ;; - reduce preceding verbatim lexemes (if any)
+        ;; - lex the note and add the lexeme to the output parse data
+        ;; - switch to {note-duration?} lexer state
+        ((looking-at (slot-value syntax 'note-regex))
+         (values (lyqi:make-parser-state 'lyqi:note-duration?-parser-state
+                                         parser-state
+                                         :form-class 'lyqi:simple-note-form
+                                         :lexemes (list (lyqi:lex-note syntax)))
+                 (lyqi:reduce-lexemes parser-state)
+                 t))
+        ;; rest, mm-rest, skip or spacer
+        ;; - reduce preceding verbatim lexemes (if any)
+        ;; - lex the rest/skip/etc and add the lexeme to the output parse data
+        ;; - switch to {duration?} lexer state
+        ((looking-at (slot-value syntax 'rest-skip-regex))
+         (values (lyqi:make-parser-state 'lyqi:duration?-parser-state
+                                         parser-state
+                                         :form-class 'lyqi:rest-skip-etc-form
+                                         :lexemes (list (lyqi:lex-rest-skip-etc syntax)))
+                 (lyqi:reduce-lexemes parser-state)
+                 t))
+        ;; block delimiters
+        ((looking-at "\\(<<\\|>>\\|{\\|}\\)")
+         (lyqi:with-forward-match (marker size)
+           (values parser-state
+                   (lyqi:reduce-lexemes parser-state
+                                        (make-instance (case (char-after marker)
+                                                         ((?\<) 'lyqi:simultaneous-start-lexeme)
+                                                         ((?\>) 'lyqi:simultaneous-end-lexeme)
+                                                         ((?\{) 'lyqi:sequential-start-lexeme)
+                                                         ((?\}) 'lyqi:sequential-end-lexeme))
+                                                       :marker marker
+                                                       :size size))
+                   (not (eolp)))))
+        ;; a chord start: '<'
+        ;; - reduce preceding verbatim lexemes (if any)
+        ;; - lex the chord start and add the lexeme to the output parse data
+        ;; - switch to {chord} state
+        ((looking-at "<")
+         (lyqi:with-forward-match (marker size)
+           (values (lyqi:make-parser-state 'lyqi:chord-parser-state
+                                           parser-state
+                                           :form-class 'lyqi:chord-end-form
+                                           :lexemes (list (make-instance 'lyqi:chord-start-lexeme
+                                                                         :marker marker
+                                                                         :size size)))
+                   (lyqi:reduce-lexemes parser-state)
+                   t)))
+        (t
+         (call-next-method))))
 
 (defmethod lp:lex ((parser-state lyqi:duration?-parser-state) syntax)
   (let ((duration (lyqi:lex-duration syntax)))
@@ -408,50 +429,34 @@
                                         :size size))
                    nil)))))
 
-(defmethod lp:lex ((parser-state lyqi:incomplete-chord-parser-state) syntax)
+(defmethod lp:lex ((parser-state lyqi:chord-parser-state) syntax)
   (lyqi:skip-whitespace)
-  (labels ((reduce-lexemes
-            (&rest additional-forms)
-            (remove-if-not #'identity (cons (lp:reduce-lexemes parser-state 'lyqi:incomplete-chord-form)
-                                            additional-forms))))
-    (cond ((eolp)
-           ;; at end of line, reduce remaining lexemes to produce an
-           ;; incomplete chord form
-           (values parser-state
-                   (reduce-lexemes)
-                   nil))
-          ;; a note
-          ((looking-at (slot-value syntax 'note-regex))
-           (lp:push-lexeme parser-state (lyqi:lex-note syntax))
-           (values parser-state
-                   nil
-                   t))
-          ;; at chord end '>', switch to {duration?} state
-          ((eql (char-after) ?\>)
-           (let ((marker (point-marker)))
-             (forward-char 1)
-             (lp:push-lexeme parser-state
-                             (make-instance 'lyqi:chord-end-lexeme
-                                            :marker marker
-                                            :size (- (point) marker)))
-             (values (lp:change-parser-state parser-state 'lyqi:duration?-parser-state)
-                     nil
-                     t)))
-          ;; a comment
-          ((looking-at "%+")
-           (values (lyqi:make-parser-state 'lyqi:line-comment-parser-state
-                                           parser-state
-                                           :lexemes (list (lyqi:lex-comment-start syntax))
-                                           :form-class 'lyqi:line-comment-form)
-                   (reduce-lexemes)
-                   t))
-          ;; something else
-          (t
-           (lp:push-lexeme parser-state
-                           (lyqi:lex-verbatim syntax "[^ \t\r\n>]+"))
-           (values parser-state
-                   nil
-                   t)))))
+  (cond ((eolp)
+         ;; this form is on several lines.
+         ;; return all lexemes
+         (values parser-state
+                 (lyqi:reduce-lexemes parser-state)
+                 nil))
+        ;; a note
+        ((looking-at (slot-value syntax 'note-regex))
+         (lp:push-lexeme parser-state (lyqi:lex-note syntax))
+         (values parser-state
+                 nil
+                 t))
+        ;; at chord end '>', switch to {duration?} state
+        ((eql (char-after) ?\>)
+         (let* ((marker (point-marker)))
+           (forward-char 1)
+           (let ((forms (lyqi:reduce-lexemes parser-state))
+                 (new-state (lp:change-parser-state parser-state 'lyqi:duration?-parser-state)))
+             (lp:push-lexeme new-state (make-instance 'lyqi:chord-end-lexeme
+                                                      :marker marker
+                                                      :size (- (point) marker)))
+             (values new-state
+                     forms
+                     t))))
+        (t
+         (call-next-method))))
 
 ;;;
 ;;; Basic scheme lexing
