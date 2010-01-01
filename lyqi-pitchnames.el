@@ -70,4 +70,91 @@
     ("heses" 6 -4) ("heseh" 6 -3) ("b" 6 -2) ("beh" 6 -1)
     ("h" 6 0) ("hih" 6 1) ("his" 6 2) ("hisih" 6 3) ("hisis" 6 4)))
 
+;;;
+;;;
+;;;
+(defclass lyqi:language-data ()
+  ((name                  :initarg :name)
+   (name->pitch           :initarg :name->pitch)
+   (pitch->name           :initarg :pitch->name)
+   (pitch-regex           :initarg :pitch-regex)
+   (octave-regex          :initarg :octave-regex)
+   (note-regex            :initarg :note-regex)
+   (rest-skip-regex       :initarg :rest-skip-regex)
+   (duration-data         :initarg :duration-data)
+   (duration-length-regex :initarg :duration-length-regex)
+   (duration-regex        :initarg :duration-regex)))
+
+(defmethod lyqi:pitchname ((this lyqi:language-data) pitch alteration)
+  (let ((pitchnum (+ (* 10 pitch) alteration 4)))
+    (cdr (assoc pitchnum (slot-value this 'pitch->name)))))
+
+(defun lyqi:join (join-string strings)
+  "Returns a concatenation of all strings elements, with join-string between elements"
+  (apply 'concat 
+	 (car strings) 
+	 (mapcar (lambda (str) (concat join-string str))
+		 (cdr strings))))
+
+(defun lyqi:sort-string-by-length (string-list)
+  "Sort the given string list by decreasing string length."
+  (nreverse 
+   (sort string-list
+	 (lambda (str1 str2)
+	   (or (< (length str1) (length str2))
+	       (and (= (length str1) (length str2))
+		    (string< str1 str2)))))))
+
+(defun lyqi:make-language-data (name pitchnames)
+  (let* ((pitch-regex (format "\\(%s\\)" 
+                              (lyqi:join "\\|" (lyqi:sort-string-by-length
+                                                (mapcar 'car pitchnames)))))
+         (octave-regex "\\('+\\|,+\\)")
+         (note-regex (format "%s%s?\\([^a-zA-Z]\\|$\\)" pitch-regex octave-regex))
+         (rest-skip-regex "\\(r\\|R\\|s\\|q\\|\\\\skip\\)\\([^a-zA-Z]\\|$\\)")
+         (duration-data '(("4" . 2)
+                          ("8" . 3)
+                          ("32" . 5)
+                          ("64" . 6)
+                          ("128" . 7) 
+                          ("16" . 4)
+                          ("256" . 8)
+                          ("2" . 1)
+                          ("1" . 0)
+                          ("\\breve" . -1)
+                          ("\\longa" . -2)
+                          ("\\maxima" . -3)))
+         (duration-length-regex
+          (format "\\(%s\\)"
+                  (lyqi:join "\\|"
+                             (mapcar 'regexp-quote
+                                     (lyqi:sort-string-by-length
+                                      (mapcar 'car duration-data))))))
+         (duration-regex (format "%s\\.*\\(\\*[0-9]+\\(/[0-9]+\\)?\\)?"
+                                 duration-length-regex)))
+    (make-instance 'lyqi:language-data
+                   :name name
+                   :name->pitch pitchnames
+                   :pitch->name (loop for (name pitch alt) in pitchnames
+                                       collect (cons (+ (* 10 pitch) alt 4) name))
+                   :pitch-regex            pitch-regex
+                   :octave-regex           octave-regex
+                   :note-regex             note-regex
+                   :rest-skip-regex        rest-skip-regex
+                   :duration-data          duration-data
+                   :duration-length-regex  duration-length-regex
+                   :duration-regex         duration-regex)))
+
+(defconst lyqi:+italian-language+ (lyqi:make-language-data 'italiano   lyqi:+italian-pitchnames+))
+(defconst lyqi:+dutch-language+   (lyqi:make-language-data 'nederlands lyqi:+dutch-pitchnames+))
+(defconst lyqi:+german-language+  (lyqi:make-language-data 'deutsch    lyqi:+german-pitchnames+))
+(defconst lyqi:+english-language+ (lyqi:make-language-data 'english    lyqi:+english-pitchnames+))
+
+(defun lyqi:select-language (language-name)
+  (case language-name
+    ((italiano) lyqi:+italian-language+)
+    ((english)  lyqi:+english-language+)
+    ((deutsch)  lyqi:+german-language+)
+    (t          lyqi:+dutch-language+)))
+
 (provide 'lyqi-pitchnames)

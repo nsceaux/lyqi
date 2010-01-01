@@ -14,20 +14,20 @@
 (defvar lyqi:prefered-languages '(italiano nederlands))
 (defvar lyqi:prefered-octave-mode 'absolute)
 
+;;; TODO: function for detecting note language
+;;; TODO: function for detecting use of \relative
+
 (defun lyqi:select-next-language (&optional syntax)
   (interactive)
   (let* ((syntax (or syntax (lp:current-syntax)))
-         (current-language (slot-value syntax 'language))
-         (relative-mode (slot-value syntax 'relative-mode)))
-    (setq lp:*current-syntax*
-          (lyqi:make-lilypond-syntax 
-           (loop for langs on lyqi:prefered-languages
-                 for lang = (first langs)
-                 if (eql lang current-language)
-                 return (or (cadr langs) (first lyqi:prefered-languages)))
-           relative-mode))
-  (force-mode-line-update)
-  (lp:parse-and-highlight-buffer)))
+         (current-language (slot-value (lyqi:language syntax) 'name))
+         (next-language (loop for langs on lyqi:prefered-languages
+                              for lang = (first langs)
+                              if (eql lang current-language)
+                              return (or (cadr langs) (first lyqi:prefered-languages)))))
+    (set-slot-value syntax 'language (lyqi:select-language next-language))
+    (force-mode-line-update)
+    (lp:parse-and-highlight-buffer)))
 
 (defun lyqi:header-line-select-next-language (event)
   "Like `lyqi:select-next-language', but temporarily select EVENT's window."
@@ -74,7 +74,7 @@
 (defun lyqi:set-header-line-format ()
   (setq header-line-format
         '(" "
-          (:eval (propertize (symbol-name (slot-value (lp:current-syntax) 'language))
+          (:eval (propertize (symbol-name (slot-value (lyqi:language (lp:current-syntax)) 'name))
                              'help-echo "select next language"
                              'mouse-face 'mode-line-highlight
                              'local-map '(keymap
@@ -124,19 +124,16 @@
   (make-local-variable 'after-change-functions)
   (pushnew 'lp:before-parse-update before-change-functions)
   (setq after-change-functions '(lp:parse-update))
-  ;; 
+  ;; buffer syntax
   (make-local-variable 'lp:*current-syntax*)
-  (let* ((previous-syntax lp:*current-syntax*)
-         (language (or (and previous-syntax
-                            (slot-value previous-syntax 'language))
-                       (first lyqi:prefered-languages)))
-         (relative-mode (if previous-syntax
-                            (slot-value previous-syntax 'relative-mode)
-                            (eql lyqi:prefered-octave-mode 'relative))))
+  (unless lp:*current-syntax*
     (setq lp:*current-syntax*
-          (lyqi:make-lilypond-syntax language relative-mode)))
+          (make-instance 'lyqi:lilypond-syntax
+                         :language (lyqi:select-language (first lyqi:prefered-languages))
+                         :relative-mode (eql lyqi:prefered-octave-mode 'relative))))
   (lp:parse-and-highlight-buffer)
   ;; header line shows info on lyqi mode
+  ;; TODO: custom variable to turn off header line
   (lyqi:set-header-line-format))
 
 (provide 'lyqi-mode)

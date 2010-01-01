@@ -15,22 +15,6 @@
 (if (not (fboundp 'match-string-no-properties))
     (defalias 'match-string-no-properties 'match-string))
 
-(defun lp:join (join-string strings)
-  "Returns a concatenation of all strings elements, with join-string between elements"
-  (apply 'concat 
-	 (car strings) 
-	 (mapcar (lambda (str) (concat join-string str))
-		 (cdr strings))))
-
-(defun lp:sort-string-by-length (string-list)
-  "Sort the given string list by decreasing string length."
-  (nreverse 
-   (sort string-list
-	 (lambda (str1 str2)
-	   (or (< (length str1) (length str2))
-	       (and (= (length str1) (length str2))
-		    (string< str1 str2)))))))
-
 (defun lp:forward-match ()
   (forward-char (- (match-end 0) (match-beginning 0))))
 
@@ -108,12 +92,36 @@
     (set-slot-value next 'previous-line first)))
 
 (defun lp:previous-form (line &optional rest-forms)
-  "For backward iteration on forms, across lines."
+  "For backward iteration on forms, across lines.
+Return three values:
+ - the previous form
+ - the form line
+ - the remaining forms on this line
+
+See also `lp:form-before-point'."
   (if rest-forms
       (values (first rest-forms) line (rest rest-forms))
       (let* ((prev-line (lp:previous-line line))
              (prev-forms (and prev-line (reverse (lp:line-forms prev-line)))))
         (values (first prev-forms) prev-line (rest prev-forms)))))
+
+(defun lp:form-before-point (syntax position)
+  "Return three values:
+- the form preceding position
+- the form line
+- the remaining forms on this line
+
+To perform a backward search on forms from (point), do e.g.:
+
+  (loop for (form line rest-forms) = (lp:form-before-point syntax position)
+        then (lp:previous-form line rest-forms)
+        ...)"
+  (let ((line (lp:find-line syntax position)))
+    (when line
+      (loop for forms on (reverse (lp:line-forms line))
+            if (< (lp:marker (first forms)) position)
+            return (values (first forms) line (rest forms))
+            finally return (lp:previous-form line)))))
 
 (defmethod lp:debug-display ((this lp:line-parse) &optional indent)
   (let ((indent (or indent 0)))
@@ -411,6 +419,16 @@ two values: the first and the last parse line."
                        if (= (lp:marker line) beginning-position) return line)
                  (loop for line = from-line then (lp:next-line line)
                        if (= (lp:marker line) end-position) return line)))))))
+
+(defun lp:find-line (syntax position)
+  (let ((current-line (lp:current-line syntax)))
+    (if (and current-line
+             (= (lp:marker current-line)
+                (save-excursion
+                  (goto-char position)
+                  (point-at-bol))))
+        current-line
+        (first (lp:find-lines syntax position)))))
 
 ;;;
 ;;; Parse update
