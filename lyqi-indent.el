@@ -69,11 +69,44 @@
                             (t previous-indent))))
                (t 0)))))
 
-(defun lyqi:offset-from-bol (pos)
+(defun lyqi:offset-from-bol (token)
   (save-excursion
-    (goto-char pos)
+    (goto-char (lp:marker token))
     (forward-line 0)
-    (- pos (point))))
+    (- (lp:marker token) (point))))
+
+(defun lyqi:calc-indent-after (paren-form next-forms)
+  (let* ((first-form (first next-forms))
+         (rest-forms (rest next-forms))
+         (string (and first-form
+                      (object-of-class-p first-form
+                                         'lyqi:scheme-symbol-lexeme)
+                      (lp:string first-form)))
+         (symbol (and string (intern string)))
+         (nb-special-args (if symbol
+                              ;; TODO
+                              (case symbol
+                                ((define-markup-command) 6)
+                                ((lambda let define) 1)
+                                (t 0))
+                              0))
+         (next-is-special (< (length rest-forms) nb-special-args)))
+    (cond ((and next-is-special rest-forms)
+           ;; align with first special arg
+           (lyqi:offset-from-bol (first rest-forms)))
+          (next-is-special
+           ;; first special arg, on a new line: add 2 indent levels
+           (+ (lyqi:offset-from-bol paren-form)
+              (* 2 lyqi:indent-level)))
+          (rest-forms
+           ;; align with first macro/function argument
+           (lyqi:offset-from-bol (first rest-forms)))
+          (first-form
+           ;; align with the list first form
+           (lyqi:offset-from-bol first-form))
+          (t
+           ;; align on the next column of paren
+           (1+ (lyqi:offset-from-bol paren-form))))))
 
 (defun lyqi:indent-scheme-line (indent-line)
   "Return the indentation of a line of Scheme code"
@@ -107,12 +140,7 @@
                 (object-of-class-p form 'lyqi:scheme-lexeme))
         do (push form previous-forms)
         ;; TODO: take into account define, let, do, etc
-        if upper-paren return (cond ((cdr previous-forms)
-                                     (lyqi:offset-from-bol (lp:marker (second previous-forms))))
-                                    (previous-forms
-                                     (lyqi:offset-from-bol (lp:marker (first previous-forms))))
-                                    (t
-                                     (1+ (lyqi:offset-from-bol (lp:marker upper-paren)))))))
+        if upper-paren return (lyqi:calc-indent-after upper-paren previous-forms)))
 
 (defun lyqi:indent-line ()
   "Indent current line."

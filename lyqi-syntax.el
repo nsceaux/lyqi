@@ -150,6 +150,8 @@
 
 ;; scheme
 (defclass lyqi:scheme-lexeme (lp:lexeme) ())
+(defclass lyqi:scheme-number-lexeme (lyqi:scheme-lexeme) ())
+(defclass lyqi:scheme-symbol-lexeme (lyqi:scheme-lexeme) ())
 (defclass lyqi:sharp-lexeme (lyqi:scheme-lexeme) ())
 (defclass lyqi:left-parenthesis-lexeme (lyqi:scheme-lexeme
                                         lp:opening-delimiter-lexeme) ())
@@ -467,12 +469,24 @@
                                         :marker marker
                                         :size size))
                    (not (eolp)))))
-        ;; TODO: strings
-        ;; TODO: special tokens, like define, let, etc
-        (t
+        ;; TODO: string
+        ;; TODO: comment
+        ((looking-at "#[ieobx][^ \t\r\n()]+")
+         (lyqi:with-forward-match (marker size)
+           (values parser-state
+                   (list (make-instance 'lyqi:scheme-number-lexeme
+                                        :marker marker :size size))
+                   (not (eolp)))))
+        ((looking-at "[0-9.]+[0-9.#]*\\([esfdl][+-]?[0-9]+\\)?")
+         (lyqi:with-forward-match (marker size)
+           (values parser-state
+                   (list (make-instance 'lyqi:scheme-number-lexeme
+                                        :marker marker :size size))
+                   (not (eolp)))))
+        (t ;; TODO: too permisive for symbols?
          (lyqi:with-forward-match ("[^ \t\r\n()]+" marker size)
            (values parser-state
-                   (list (make-instance 'lyqi:scheme-lexeme
+                   (list (make-instance 'lyqi:scheme-symbol-lexeme
                                         :marker marker
                                         :size size))
                    (not (eolp)))))))

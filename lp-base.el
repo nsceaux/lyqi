@@ -144,6 +144,10 @@
             (object-class this)
             (or start "?") (or end "?"))))
 
+(defmethod lp:string ((this lp:parser-symbol))
+  (with-slots (marker size) this
+    (buffer-substring-no-properties marker (+ marker size))))
+
 ;;; Forms (produced by reducing lexemes)
 (defclass lp:form (lp:parser-symbol) ())
 
@@ -248,7 +252,7 @@ Return three values:
         (looking-at "\\S-+")
         (lp:forward-match)
         (values parser-state
-                (list (make-instance 'lp:form
+                (list (make-instance 'lp:lexeme
                                      :marker marker
                                      :size (- (point) marker)))
                 (not (eolp))))))
@@ -284,7 +288,19 @@ Keywords supported:
           unless first-line do (setf first-line line)
           if previous-line do (set-slot-value previous-line 'next-line line)
           do (forward-line 1) ;; go to next-line
-          if (>= (point) cl-end-position) return (values first-line line next-parser-state))))
+          ;; make sure to build a line-parse for last empty line
+          if (and (bolp) (eobp) (= (point) cl-end-position))
+          return (let* ((marker (point-marker))
+                        (very-last-line (make-instance 'lp:line-parse
+                                                       :marker marker
+                                                       :previous-line line
+                                                       :parser-state next-parser-state
+                                                       :forms nil)))
+                   (set-marker-insertion-type marker nil)
+                   (set-slot-value line 'next-line very-last-line)
+                   (values first-line very-last-line next-parser-state))
+          if (>= (point) cl-end-position)
+          return (values first-line line next-parser-state))))
 
 (defun lp:parse-line (syntax parser-state)
   "Return a form list, built by parsing current buffer starting
@@ -395,17 +411,16 @@ current syntax parse data (`first-line' and `last-line' slots)."
       (forward-line 1)
       (lp:update-line-if-different-parser-state (lp:next-line line) next-state syntax))))
 
-(defun lp:before-parse-update (beginning old-length)
+(defun lp:before-parse-update (beginning end)
   "Find the modified parse lines, covering the region starting
-from `beginning' and covering `old-length' characters.  Set the
-`first-modified-line' and `last-modified-line' slots of the
-current syntax."
+from `beginning' to `end'.  Set the `first-modified-line' and
+`last-modified-line' slots of the current syntax."
   (let ((syntax (lp:current-syntax)))
     (when (not (lp:first-line syntax))
       (lp:parse-and-highlight-buffer))
     ;; find the portion of the parse-tree that needs an update
     (multiple-value-bind (first-modified-line last-modified-line)
-        (lp:find-lines syntax beginning old-length)
+        (lp:find-lines syntax beginning (- end beginning))
       (set-slot-value syntax 'first-modified-line first-modified-line)
       (set-slot-value syntax 'last-modified-line last-modified-line))))
 
