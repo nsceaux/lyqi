@@ -12,34 +12,42 @@
 ;;;
 ;;; Lexer states
 ;;;
-(defclass lyqi:toplevel-parser-state (lp:parser-state)
-  ((form-class :initform 'lyqi:verbatim-form)))
-(defclass lyqi:duration?-parser-state (lp:parser-state) ())
-(defclass lyqi:note-duration?-parser-state (lp:parser-state) ())
-(defclass lyqi:note-rest?-parser-state (lp:parser-state) ())
-(defclass lyqi:incomplete-chord-parser-state (lp:parser-state) ())
-(defclass lyqi:line-comment-parser-state (lp:parser-state) ())
-(defclass lyqi:string-parser-state (lp:parser-state) ())
+(defclass lyqi:lilypond-parser-state (lp:parser-state)
+  ((embedded-lilypond :initform nil
+                      :initarg :embedded-lilypond
+                      :accessor lyqi:embedded-lilypond-state-p)))
 
-(defclass lyqi:scheme-list-parser-state (lp:parser-state)
+(defclass lyqi:toplevel-parser-state (lyqi:lilypond-parser-state)
+  ((form-class :initform 'lyqi:verbatim-form)))
+(defclass lyqi:duration?-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:note-duration?-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:note-rest?-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:incomplete-chord-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:line-comment-parser-state (lyqi:lilypond-parser-state) ())
+(defclass lyqi:string-parser-state (lyqi:lilypond-parser-state) ())
+
+(defclass lyqi:scheme-list-parser-state (lyqi:lilypond-parser-state)
   ((depth :initform 1
           :initarg :depth)))
 (defmethod lp:same-parser-state-p ((this lyqi:scheme-list-parser-state) other-state)
   (and (call-next-method)
        (= (slot-value this 'depth) (slot-value other-state 'depth))))
 
-(defmethod lyqi:scheme-state-p ((this lp:parser-state))
+(defmethod lyqi:scheme-state-p ((this lyqi:lilypond-parser-state))
   nil)
 (defmethod lyqi:scheme-state-p ((this lyqi:scheme-list-parser-state))
   t)
 
-(defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state) ())
+(defclass lyqi:embedded-toplevel-parser-state (lyqi:toplevel-parser-state)
+  ((embedded-lilypond :initform t)))
 
-(defmethod lyqi:embedded-lilypond-state-p ((this lp:parser-state))
-  (and (lp:next-parser-state this)
-       (lyqi:embedded-lilypond-state-p this)))
-(defmethod lyqi:embedded-lilypond-state-p ((this lyqi:embedded-toplevel-parser-state))
-  t)
+(defun lyqi:make-parser-state (class next-parser-state &rest initargs)
+  (apply 'make-instance
+         class
+         :next-parser-state next-parser-state
+         :embedded-lilypond (and next-parser-state
+                                 (lyqi:embedded-lilypond-state-p next-parser-state))
+         initargs))
 
 ;;;
 ;;; LilyPond syntax (language dependent)
@@ -218,10 +226,10 @@
           ;; - lex the note and add the lexeme to the output parse data
           ;; - switch to {note-duration?} lexer state
           ((looking-at (slot-value syntax 'note-regex))
-           (values (make-instance 'lyqi:note-duration?-parser-state
-                                  :form-class 'lyqi:simple-note-form
-                                  :lexemes (list (lyqi:lex-note syntax))
-                                  :next-parser-state parser-state)
+           (values (lyqi:make-parser-state 'lyqi:note-duration?-parser-state
+                                           parser-state
+                                           :form-class 'lyqi:simple-note-form
+                                           :lexemes (list (lyqi:lex-note syntax)))
                    (reduce-lexemes)
                    t))
           ;; rest, mm-rest, skip or spacer
@@ -229,10 +237,10 @@
           ;; - lex the rest/skip/etc and add the lexeme to the output parse data
           ;; - switch to {duration?} lexer state
           ((looking-at (slot-value syntax 'rest-skip-regex))
-           (values (make-instance 'lyqi:duration?-parser-state
-                                  :form-class 'lyqi:rest-skip-etc-form
-                                  :lexemes (list (lyqi:lex-rest-skip-etc syntax))
-                                  :next-parser-state parser-state)
+           (values (lyqi:make-parser-state 'lyqi:duration?-parser-state
+                                     parser-state
+                                     :form-class 'lyqi:rest-skip-etc-form
+                                     :lexemes (list (lyqi:lex-rest-skip-etc syntax)))
                    (reduce-lexemes)
                    t))
           ;; block delimiters
@@ -253,12 +261,12 @@
           ;; - switch to {incomplete-chord} state
           ((looking-at "<")
            (lyqi:with-forward-match (marker size)
-             (values (make-instance 'lyqi:incomplete-chord-parser-state
-                                    :form-class 'lyqi:chord-form
-                                    :lexemes (list (make-instance 'lyqi:chord-start-lexeme
-                                                                  :marker marker
-                                                                  :size size))
-                                    :next-parser-state parser-state)
+             (values (lyqi:make-parser-state 'lyqi:incomplete-chord-parser-state
+                                             parser-state
+                                             :form-class 'lyqi:chord-form
+                                             :lexemes (list (make-instance 'lyqi:chord-start-lexeme
+                                                                           :marker marker
+                                                                           :size size)))
                      (reduce-lexemes)
                      t)))
           ;; TODO: multi line comment
@@ -268,10 +276,10 @@
           ;; - lex the line-comment start and add the lexeme to the output parse data
           ;; - switch to {line-comment} state
           ((looking-at "%+")
-           (values (make-instance 'lyqi:line-comment-parser-state
-                                  :form-class 'lyqi:line-comment-form
-                                  :lexemes (list (lyqi:lex-comment-start syntax))
-                                  :next-parser-state parser-state)
+           (values (lyqi:make-parser-state 'lyqi:line-comment-parser-state
+                                           parser-state
+                                           :form-class 'lyqi:line-comment-form
+                                           :lexemes (list (lyqi:lex-comment-start syntax)))
                    (reduce-lexemes)
                    t))
           ;; a one line string
@@ -285,8 +293,8 @@
           ;; a unterminated string
           ((looking-at "#?\"\\([^\"\\\\]\\|\\\\.\\)*$")
            (lyqi:with-forward-match (marker size)
-             (values (make-instance 'lyqi:string-parser-state
-                                    :next-parser-state parser-state)
+             (values (lyqi:make-parser-state 'lyqi:string-parser-state
+                                             parser-state)
                      (reduce-lexemes (make-instance 'lyqi:string-lexeme
                                                     :marker marker
                                                     :size size))
@@ -304,8 +312,8 @@
                      ((looking-at "['`$]?(")
                       (lyqi:with-forward-match (marker size)
                         ;; a list form
-                        (values (make-instance 'lyqi:scheme-list-parser-state
-                                               :next-parser-state parser-state)
+                        (values (lyqi:make-parser-state 'lyqi:scheme-list-parser-state
+                                                        parser-state)
                                 (reduce-lexemes sharp-lexeme
                                                 (make-instance 'lyqi:left-parenthesis-lexeme
                                                                :marker marker
@@ -431,10 +439,10 @@
                      t)))
           ;; a comment
           ((looking-at "%+")
-           (values (make-instance 'lyqi:line-comment-parser-state
-                                  :next-parser-state parser-state
-                                  :lexemes (list (lyqi:lex-comment-start syntax))
-                                  :form-class 'lyqi:line-comment-form)
+           (values (lyqi:make-parser-state 'lyqi:line-comment-parser-state
+                                           parser-state
+                                           :lexemes (list (lyqi:lex-comment-start syntax))
+                                           :form-class 'lyqi:line-comment-form)
                    (reduce-lexemes)
                    t))
           ;; something else
@@ -457,9 +465,9 @@
                  nil))
         ((looking-at "(")
          (lyqi:with-forward-match (marker size)
-           (values (make-instance 'lyqi:scheme-list-parser-state
-                                  :depth (1+ (slot-value parser-state 'depth))
-                                  :next-parser-state parser-state)
+           (values (lyqi:make-parser-state 'lyqi:scheme-list-parser-state
+                                           parser-state
+                                           :depth (1+ (slot-value parser-state 'depth)))
                    (list (make-instance 'lyqi:left-parenthesis-lexeme
                                         :marker marker
                                         :size size))
@@ -473,8 +481,8 @@
                    (not (eolp)))))
         ((looking-at "#{")
          (lyqi:with-forward-match (marker size)
-           (values (make-instance 'lyqi:embedded-toplevel-parser-state
-                                  :next-parser-state parser-state)
+           (values (lyqi:make-parser-state 'lyqi:embedded-toplevel-parser-state
+                                           parser-state)
                    (list (make-instance 'lyqi:embedded-lilypond-start-lexeme
                                         :marker marker
                                         :size size))
