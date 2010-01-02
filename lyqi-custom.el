@@ -22,7 +22,7 @@ guessed."
               (const :tag "German" deutsch)
               (const :tag "English" english)))
 
-(defcustom lyqi:prefered-octave-mode absolute
+(defcustom lyqi:prefered-octave-mode 'absolute
   "Prefered octave mode, used in new files."
   :group 'lyqi
   :type '(choice (const :tag "Absolute octaves" absolute)

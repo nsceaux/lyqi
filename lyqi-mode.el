@@ -13,7 +13,7 @@
 (require 'lyqi-editing-commands)
 
 ;;; TODO: function for detecting note language
-;;; TODO: function for detecting use of \relative
+;;; TODO: function for detecting use of \relative in file
 
 (defun lyqi:select-next-language (&optional syntax)
   (interactive)
@@ -27,13 +27,6 @@
     (force-mode-line-update)
     (lp:parse-and-highlight-buffer)))
 
-(defun lyqi:header-line-select-next-language (event)
-  "Like `lyqi:select-next-language', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:select-next-language)))
-
 (defun lyqi:toggle-relative-mode (&optional syntax)
   (interactive)
   (let ((syntax (or syntax (lp:current-syntax))))
@@ -41,12 +34,14 @@
                     (not (slot-value syntax 'relative-mode))))
   (force-mode-line-update))
 
-(defun lyqi:header-line-toggle-relative-mode (event)
-  "Like `lyqi:toggle-relative-mode', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:toggle-relative-mode)))
+;;;
+;;; Mode maps
+;;;
+(defvar lyqi:normal-mode-map nil
+  "Keymap used in `lyqi-mode', in normal editing.")
+
+(defvar lyqi:quick-insert-mode-map nil
+  "Keymap used in `lyqi-mode', in quick insertion editing.")
 
 (defun lyqi:toggle-quick-edit-mode (&optional syntax)
   (interactive)
@@ -54,10 +49,110 @@
          (quick-edit-mode (not (slot-value syntax 'quick-edit-mode))))
     (set-slot-value syntax 'quick-edit-mode quick-edit-mode)
     (if quick-edit-mode
-        (lyqi:quick-insert-mode-map)
-        (lyqi:normal-mode-map)))
-  (use-local-map lyqi-mode-map)
+        (use-local-map lyqi:quick-insert-mode-map)
+        (use-local-map lyqi:normal-mode-map)))
   (force-mode-line-update))
+
+(defconst lyqi:+azerty-mode-map+
+  '(;; Rest, skip, etc
+    ("v" lyqi:insert-rest)
+    ("b" lyqi:insert-mm-rest)
+    ("q" lyqi:insert-chord-repetition)
+    ;; also available: lyqi:insert-spacer lyqi:insert-skip
+    ;; Pitches
+    ("e" lyqi:insert-note-c)
+    ("r" lyqi:insert-note-d)
+    ("t" lyqi:insert-note-e)
+    ("d" lyqi:insert-note-f)
+    ("f" lyqi:insert-note-g)
+    ("g" lyqi:insert-note-a)
+    ("c" lyqi:insert-note-b)
+    ;; Alterations
+    ("z" lyqi:change-alteration-down)
+    ("y" lyqi:change-alteration-up)
+    ("a" lyqi:change-alteration-neutral)
+    ;; Octaves
+    ("s" lyqi:change-octave-down)
+    ("h" lyqi:change-octave-up)
+    ;; also available: lyqi:change-octave-zero
+    ;; Durations
+    ("i" lyqi:change-duration-1)
+    ("o" lyqi:change-duration-2)
+    ("j" lyqi:change-duration-4)
+    ("k" lyqi:change-duration-8)
+    ("l" lyqi:change-duration-16)
+    ("m" lyqi:change-duration-32)
+    ("p" lyqi:change-duration-dots)
+    ;; also available: lyqi:change-duration-64 lyqi:change-duration-128
+    ;; Undo
+    ("u" undo)))
+
+(defconst lyqi:+qwerty-mode-map+
+  '(;; Rest, skip, etc
+    ("v" lyqi:insert-rest)
+    ("b" lyqi:insert-mm-rest)
+    ("q" lyqi:insert-chord-repetition)
+    ;; also available: lyqi:insert-spacer lyqi:insert-skip
+    ;; Pitches
+    ("e" lyqi:insert-note-c)
+    ("r" lyqi:insert-note-d)
+    ("t" lyqi:insert-note-e)
+    ("d" lyqi:insert-note-f)
+    ("f" lyqi:insert-note-g)
+    ("g" lyqi:insert-note-a)
+    ("c" lyqi:insert-note-b)
+    ;; Alterations
+    ("w" lyqi:change-alteration-down)
+    ("y" lyqi:change-alteration-up)
+    ;; also available: lyqi:change-alteration-neutral
+    ;; Octaves
+    ("s" lyqi:change-octave-down)
+    ("h" lyqi:change-octave-up)
+    ("a" lyqi:change-octave-zero)
+    ;; Durations
+    ("i" lyqi:change-duration-1)
+    ("o" lyqi:change-duration-2)
+    ("j" lyqi:change-duration-4)
+    ("k" lyqi:change-duration-8)
+    ("l" lyqi:change-duration-16)
+    (";" lyqi:change-duration-32)
+    ("p" lyqi:change-duration-dots)
+    ;; also available: lyqi:change-duration-64 lyqi:change-duration-128
+    ;; Undo
+    ("u" undo)))
+
+(eval-when (load)
+  (setq lyqi:normal-mode-map (make-sparse-keymap))
+  (define-key lyqi:normal-mode-map "\C-cq" 'lyqi:toggle-quick-edit-mode)
+  ;; TODO: more key bindings
+  (setq lyqi:quick-insert-mode-map (copy-keymap lyqi:normal-mode-map))
+  (loop for (key command) in (if (eql lyqi:keyboard-mapping 'azerty)
+                                 lyqi:+azerty-mode-map+
+                                 lyqi:+qwerty-mode-map+)
+        do (define-key lyqi:quick-insert-mode-map key command))
+  (loop for (key command) in lyqi:custom-key-map
+        do (define-key lyqi:quick-insert-mode-map key command)))
+
+;;;
+;;; Header line
+;;;
+
+;;; TODO: custom variable for not activating it
+;;; TODO: header button for deactivating it
+
+(defun lyqi:header-line-select-next-language (event)
+  "Like `lyqi:select-next-language', but temporarily select EVENT's window."
+  (interactive "e")
+  (save-selected-window
+    (select-window (posn-window (event-start event)))
+    (lyqi:select-next-language)))
+
+(defun lyqi:header-line-toggle-relative-mode (event)
+  "Like `lyqi:toggle-relative-mode', but temporarily select EVENT's window."
+  (interactive "e")
+  (save-selected-window
+    (select-window (posn-window (event-start event)))
+    (lyqi:toggle-relative-mode)))
 
 (defun lyqi:header-line-toggle-quick-edit-mode (event)
   "Like `lyqi:toggle-quick-edit-mode', but temporarily select EVENT's window."
@@ -110,16 +205,17 @@
                                  'local-map '(keymap (header-line
                                                       keymap (mouse-1 . lyqi:header-line-lyqi-mode)))))))))
 
-(defvar lyqi-mode-map nil
-  "Keymap used in `lyqi-mode'.")
+;;;
+;;; lyqi-mode
+;;;
 
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion.
 
-\\{lyqi-mode-map}
+\\{lyqi:normal-mode-map}
 
-Moreover, in quick insertion mode:
-TODO
+In quick insertion mode:
+\\{lyqi:quick-insert-mode-map}
 "
   (interactive)
   (kill-all-local-variables)
@@ -146,90 +242,6 @@ TODO
   ;; header line shows info on lyqi mode
   ;; TODO: custom variable to turn off header line
   (lyqi:set-header-line-format)
-  (use-local-map LilyPond-mode-map))
-
-(defconst lyqi:+azerty-mode-map+
-  '(;; Rest, skip, etc
-    ("v" lyqi:insert-rest)
-    ("b" lyqi:insert-mm-rest)
-    ("q" lyqi:insert-chord-repetition)
-    ;; also available: lyqi:insert-spacer lyqi:insert-skip
-    ;; Pitches
-    ("e" lyqi:insert-note-c)
-    ("r" lyqi:insert-note-d)
-    ("t" lyqi:insert-note-e)
-    ("d" lyqi:insert-note-f)
-    ("f" lyqi:insert-note-g)
-    ("g" lyqi:insert-note-a)
-    ("c" lyqi:insert-note-b)
-    ;; Alterations
-    ("z" lyqi:change-alteration-down)
-    ("y" lyqi:change-alteration-up)
-    ("a" lyqi:change-alteration-neutral)
-    ;; Octaves
-    ("s" lyqi:change-octave-down)
-    ("h" lyqi:change-octave-up)
-    ;; also available: lyqi:change-octave-zero
-    ;; Durations
-    ("i" lyqi:change-duration-1)
-    ("o" lyqi:change-duration-2)
-    ("j" lyqi:change-duration-4)
-    ("k" lyqi:change-duration-8)
-    ("l" lyqi:change-duration-16)
-    ("m" lyqi:change-duration-32)
-    ;; also available: lyqi:change-duration-64 lyqi:change-duration-128
-    ("p" lyqi:change-duration-dots)))
-
-(defconst lyqi:+qwerty-mode-map+
-  '(;; Rest, skip, etc
-    ("v" lyqi:insert-rest)
-    ("b" lyqi:insert-mm-rest)
-    ("q" lyqi:insert-chord-repetition)
-    ;; also available: lyqi:insert-spacer lyqi:insert-skip
-    ;; Pitches
-    ("e" lyqi:insert-note-c)
-    ("r" lyqi:insert-note-d)
-    ("t" lyqi:insert-note-e)
-    ("d" lyqi:insert-note-f)
-    ("f" lyqi:insert-note-g)
-    ("g" lyqi:insert-note-a)
-    ("c" lyqi:insert-note-b)
-    ;; Alterations
-    ("w" lyqi:change-alteration-down)
-    ("y" lyqi:change-alteration-up)
-    ;; also available: lyqi:change-alteration-neutral
-    ;; Octaves
-    ("s" lyqi:change-octave-down)
-    ("h" lyqi:change-octave-up)
-    ("a" lyqi:change-octave-zero)
-    ;; Durations
-    ("i" lyqi:change-duration-1)
-    ("o" lyqi:change-duration-2)
-    ("j" lyqi:change-duration-4)
-    ("k" lyqi:change-duration-8)
-    ("l" lyqi:change-duration-16)
-    (";" lyqi:change-duration-32)
-    ;; also available: lyqi:change-duration-64 lyqi:change-duration-128
-    ("p" lyqi:change-duration-dots)))
-
-(eval-when (load)
-  (setq lyqi-mode-map (make-sparse-keymap))
-  (define-key lyqi-mode-map "\C-cq" 'lyqi:toggle-quick-edit-mode))
-
-(defun lyqi:quick-insert-mode-map ()
-  (loop for (key command) in (if (eql lyqi:keyboard-mapping 'azerty)
-                                 lyqi:+azerty-mode-map+
-                                 lyqi:+qwerty-mode-map+)
-        do (define-key lyqi-mode-map key command))
-  (loop for (key command) in lyqi:custom-key-map
-        do (define-key lyqi-mode-map key command)))
-
-(defun lyqi:normal-mode-map ()
-  (loop for (key command) in (if (eql lyqi:keyboard-mapping 'azerty)
-                                 lyqi:+azerty-mode-map+
-                                 lyqi:+qwerty-mode-map+)
-        do (define-key lyqi-mode-map key 'self-insert-command))
-  (loop for (key command) in lyqi:custom-key-map
-        do (define-key lyqi-mode-map key 'self-insert-command)))
+  (use-local-map lyqi:normal-mode-map))
 
 (provide 'lyqi-mode)
