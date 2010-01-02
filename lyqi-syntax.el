@@ -64,17 +64,12 @@
 (defmethod initialize-instance :AFTER ((this lyqi:lilypond-syntax) &optional fields)
   (set-slot-value this 'default-parser-state
                   (make-instance 'lyqi:toplevel-parser-state))
-  (set-slot-value this 'alterations
-                  (loop for pitch from 0 to 6
-                        collect (cons 0 2))))
+  (set-slot-value this 'alterations (make-vector 7 0)))
 
 ;;;
-;;; Lexemes
+;;; Music type mixins
 ;;;
-
-(defclass lyqi:verbatim-lexeme (lp:lexeme) ())
-
-(defclass lyqi:note-lexeme (lp:lexeme)
+(defclass lyqi:note-mixin ()
   ((pitch :initarg :pitch)
    (alteration :initarg :alteration
                :initform 0)
@@ -83,6 +78,23 @@
    (accidental :initform nil
                :initarg :accidental)))
 
+(defclass lyqi:duration-mixin ()
+  ((length      :initarg :length
+                :initform nil)
+   (dot-count   :initarg :dot-count
+                :initform 0)
+   (numerator   :initarg :numerator
+                :initform 1)
+   (denominator :initarg :denominator
+                :initform 1)))
+
+;;;
+;;; Lexemes
+;;;
+
+(defclass lyqi:verbatim-lexeme (lp:lexeme) ())
+
+(defclass lyqi:note-lexeme (lp:lexeme lyqi:note-mixin) ())
 (defclass lyqi:rest-skip-etc-lexeme (lp:lexeme) ())
 (defclass lyqi:rest-lexeme (lyqi:rest-skip-etc-lexeme) ())
 (defclass lyqi:note-rest-lexeme (lyqi:rest-lexeme) ())
@@ -104,15 +116,8 @@
 (defclass lyqi:string-end-lexeme (lp:string-lexeme) ())
 
 (defclass lyqi:base-duration-lexeme (lp:lexeme) ())
-(defclass lyqi:duration-lexeme (lyqi:base-duration-lexeme)
-  ((length      :initarg :length
-                :initform nil)
-   (dot-count   :initarg :dot-count
-                :initform 0)
-   (numerator   :initarg :numerator
-                :initform 1)
-   (denominator :initarg :denominator
-                :initform 1)))
+(defclass lyqi:duration-lexeme (lyqi:base-duration-lexeme lyqi:duration-mixin) ())
+  
 (defclass lyqi:no-duration-lexeme (lyqi:base-duration-lexeme) ())
 
 (defgeneric lyqi:explicit-duration-p (duration)
@@ -175,7 +180,7 @@ Oterwise, return NIL.")
 (defmethod lyqi:form-with-note-p ((this lyqi:note-lexeme))
   this)
 (defmethod lyqi:form-with-note-p ((this lyqi:simple-note-form))
-  (loop for lexeme in (slot-value this 'lexemes)
+  (loop for lexeme in (slot-value this 'children)
         for pitch = (lyqi:form-with-note-p lexeme)
         if pitch return pitch))
 
