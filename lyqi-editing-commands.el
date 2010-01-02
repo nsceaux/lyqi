@@ -199,11 +199,13 @@ duration object has no dot nor numerator nor denominator."
 ;;; - change a note alteration
 ;;;
 
-(defun lyqi:find-note-backward (syntax position)
-  "Find note backwards."
+(defun lyqi:find-note-backward (syntax position &optional stop-on-rests)
+  "Find note backwards.  If `stop-on-rests' is not NIL, then stop
+searching as soon as a rest, skip, etc is found."
   (loop for (form current-line rest-forms) = (lp:form-before-point syntax position)
         then (lp:previous-form current-line rest-forms)
         while form
+        if (and stop-on-rests (lyqi:rest-skip-etc-form-p form)) return nil
         for note = (lyqi:form-with-note-p form)
         if note return note))
 
@@ -275,7 +277,7 @@ duration object has no dot nor numerator nor denominator."
 
 (defun lyqi:change-alteration (alteration-direction)
   (let* ((syntax (lp:current-syntax))
-         (note (lyqi:find-note-backward syntax (point))))
+         (note (lyqi:find-note-backward syntax (point) t)))
     (when note
       (with-slots (pitch alteration) note
         (let ((new-alteration (cond ((> alteration-direction 0) ;; increment
@@ -318,7 +320,7 @@ sharp -> neutral -> flat"
 
 (defun lyqi:change-octave (octave-direction)
   (let* ((syntax (lp:current-syntax))
-         (note (lyqi:find-note-backward syntax (point))))
+         (note (lyqi:find-note-backward syntax (point) t)))
     (when note
       (with-slots (octave-modifier) note
         (let ((new-octave (if (= 0 octave-direction)

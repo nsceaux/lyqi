@@ -8,6 +8,7 @@
 (require 'eieio)
 (require 'lp-base)
 (require 'lyqi-pitchnames)
+(require 'lyqi-custom)
 
 ;;;
 ;;; Lexer states
@@ -172,17 +173,39 @@ with a duration, then return its duration.")
 (defmethod lyqi:form-with-duration-p ((this lyqi:music-form))
   (lyqi:duration-of this))
 
-(defgeneric lyqi:form-with-note-p (parser-symbol)
-  "If `parser-symbol' has a pitch lexeme, then return the pitch.
-Oterwise, return NIL.")
-(defmethod lyqi:form-with-note-p ((this lp:parser-symbol))
-  nil)
-(defmethod lyqi:form-with-note-p ((this lyqi:note-lexeme))
-  this)
-(defmethod lyqi:form-with-note-p ((this lyqi:simple-note-form))
-  (loop for lexeme in (slot-value this 'children)
-        for pitch = (lyqi:form-with-note-p lexeme)
-        if pitch return pitch))
+(defun lyqi:form-with-note-p (parser-symbol)
+  "If `parser-symbol' has, or is a note lexeme, then return the note.
+Oterwise, return NIL."
+  (cond ((lyqi:note-lexeme-p parser-symbol)
+         parser-symbol)
+        ((lyqi:simple-note-form-p parser-symbol)
+         (loop for lexeme in (slot-value parser-symbol 'children)
+               for note = (lyqi:form-with-note-p lexeme)
+               if note return note))))
+
+;;;
+;;; Fontification of lexemes and forms
+;;;
+
+(defmethod lp:fontify ((this lyqi:verbatim-form))
+  (let* ((start (marker-position (lp:marker this)))
+         (end (+ start (lp:size this))))
+    (set-text-properties start end '(face lyqi:verbatim-face))))
+
+(defmethod lp:face ((this lyqi:note-lexeme))
+  '(face lyqi:note-face))
+
+(defmethod lp:face ((this lyqi:rest-skip-etc-lexeme))
+  '(face lyqi:rest-face))
+
+(defmethod lp:face ((this lyqi:duration-lexeme))
+  '(face lyqi:duration-face))
+
+(defmethod lp:face ((this lyqi:scheme-lexeme))
+  '(face lyqi:scheme-face))
+
+(defmethod lp:face ((this lp:delimiter-lexeme))
+  '(face lyqi:delimiter-face))
 
 ;;;
 ;;; Lex functions

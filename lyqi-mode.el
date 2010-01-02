@@ -7,46 +7,10 @@
 (eval-when-compile (require 'cl))
 (require 'eieio)
 (require 'lp-base)
+(require 'lyqi-custom)
 (require 'lyqi-syntax)
-(require 'lyqi-fontify)
 (require 'lyqi-indent)
 (require 'lyqi-editing-commands)
-
-;;;
-;;; Customization
-;;;
-(defgroup lyqi nil
-  "LilyPond quick insert mode."
-  :prefix "lyqi:"
-  :group 'applications)
-
-(defcustom lyqi:prefered-languages '(italiano nederlands)
-  "Prefered languages for note names.  The first choice is used
-in new files, or when the language of an existing file cannot be
-guessed."
-  :group 'lyqi
-  :type '(set (const :tag "Italian/French" 'italiano)
-              (const :tag "Dutch" 'nederlands)
-              (const :tag "German" 'deutsch)
-              (const :tag "English" 'english)))
-
-(defcustom lyqi:prefered-octave-mode 'absolute
-  "Prefered octave mode, used in new files."
-  :group 'lyqi
-  :type '(choice (const :tag "Absolute octaves" 'absolute)
-                 (const :tag "Relative octaves" 'relative)))
-
-(defcustom lyqi:keyboard-mapping 'azerty
-  "Keyboard mapping, used to associate keys to commands in quick
-insert mode map."
-  :group 'lyqi
-  :type '(choice (const :tag "AZERTY" 'azerty)
-                 (const :tag "QWERTY" 'qwerty)))
-
-(defcustom lyqi:custom-key-map nil
-  "Key/command alist, for customizing the quick insertion mode map."
-  :group 'lyqi
-  :type '(alist :key-type string :value-type function))
 
 ;;; TODO: function for detecting note language
 ;;; TODO: function for detecting use of \relative
