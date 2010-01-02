@@ -57,12 +57,15 @@
 (defclass lyqi:lilypond-syntax (lp:syntax)
   ((language              :initarg :language
                           :accessor lyqi:language)
+   (possible-languages)
    (relative-mode         :initarg :relative-mode
                           :initform nil)
    (quick-edit-mode       :initform nil)
    (alterations)))
 
 (defmethod initialize-instance :AFTER ((this lyqi:lilypond-syntax) &optional fields)
+  (set-slot-value this 'possible-languages
+                  (copy-list lyqi:prefered-languages))
   (set-slot-value this 'default-parser-state
                   (make-instance 'lyqi:toplevel-parser-state))
   (set-slot-value this 'alterations (make-vector 7 0)))

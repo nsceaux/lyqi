@@ -15,17 +15,72 @@
 ;;; TODO: function for detecting note language
 ;;; TODO: function for detecting use of \relative in file
 
+;;;
+;;; Language selection
+;;;
+;;; 1) if \include "language.ly" is found is the buffer, use that language
+;;; 2) if the buffer filename is in one of the directories listed in
+;;; `lyqi:projects-language', then use the specified language
+;;; 3) try to detect note names in the buffer
+;;; 4) otherwise, use the prefered language.
+;;;
+
+(defvar lyqi:sorted-projects-language nil)
+
+(eval-when (load)
+  (setq lyqi:sorted-projects-language
+        (sort (loop for (directory language) in lyqi:projects-language
+                    collect (cons (file-name-as-directory (file-truename directory)) language))
+              (lambda (elt1 elt2)
+                (let ((str1 (first elt1))
+                      (str2 (first elt2)))
+                  (>= (length str1) (length str2)))))))
+
+(defun lyqi:file-in-defined-projects-p (filename)
+  "If `filename' is in a sub-directory of one of the directories
+specified in `lyqi:projects-lanugages', return the associated langugage.
+Otherwise, return NIL."
+  (loop with file-dir = (file-name-directory (file-truename filename))
+        with file-dir-length = (length file-dir)
+        for (dir . lang) in lyqi:sorted-projects-language
+        for len = (length dir)
+        if (and (<= len file-dir-length)
+                (string= dir (substring file-dir 0 (length dir))))
+        return lang))
+
+(defun lyqi:detect-buffer-language ()
+  "Detect language used in current buffer.
+
+1) if \include \"<language>.ly\" is found is the buffer, use that language
+2) if the buffer filename is in one of the directories listed in
+`lyqi:projects-language', then use the specified language
+3) try to detect note names in the buffer
+4) otherwise, use the prefered language."
+  (save-excursion
+    (goto-char (point-min))
+    (or (and (re-search-forward "\\\\include \"\\(italiano\\|english\\|deutsch\\)\\.ly\"" nil t)
+             (intern (match-string-no-properties 1)))
+        (lyqi:file-in-defined-projects-p (buffer-file-name))
+        (and (re-search-forward "\\(^\\|[ \t]\\)\\(do\\|re\\|mi\\|fa\\|sol\\|la\\|si\\)[1248]" nil t)
+             'italiano)
+        (first lyqi:prefered-languages))))
+
 (defun lyqi:select-next-language (&optional syntax)
   (interactive)
   (let* ((syntax (or syntax (lp:current-syntax)))
          (current-language (slot-value (lyqi:language syntax) 'name))
-         (next-language (loop for langs on lyqi:prefered-languages
+         (next-language (loop with possible-languages = (slot-value syntax 'possible-languages)
+                              for langs on possible-languages
                               for lang = (first langs)
                               if (eql lang current-language)
-                              return (or (cadr langs) (first lyqi:prefered-languages)))))
+                              return (or (cadr langs) (first possible-languages)))))
     (set-slot-value syntax 'language (lyqi:select-language next-language))
     (force-mode-line-update)
     (lp:parse-and-highlight-buffer)))
+
+;;;
+;;; Misc commands
+;;;
 
 (defun lyqi:toggle-relative-mode (&optional syntax)
   (interactive)
@@ -121,17 +176,39 @@
     ;; Undo
     ("u" undo)))
 
+(defmacro lyqi:define-string-insert-command (string)
+  (let ((fn-name (intern (format "insert-string-%s" string))))
+    `(progn
+       (defun ,fn-name ()
+         ,(format "Insert string \"%s\"" string)
+         (interactive)
+         (insert ,string))
+       (byte-compile ',fn-name)
+       ',fn-name)))
+
+(defun lyqi:force-mode-map-definition ()
+  "Force the (re-)definition if `lyqi:quick-insert-mode-map', by
+copying `lyqi:normal-mode-map' and using bindings set in either
+`lyqi:+qwerty-mode-map+' or `lyqi:+azerty-mode-map+' (depending
+on the value of `lyqi:keyboard-mapping'), and bindings from
+`lyqi:custom-key-map'."
+  (interactive)
+  (setq lyqi:quick-insert-mode-map (copy-keymap lyqi:normal-mode-map))
+  (loop for (key command) in (case lyqi:keyboard-mapping
+                               ((azerty) lyqi:+azerty-mode-map+)
+                               (t lyqi:+qwerty-mode-map+))
+        do (define-key lyqi:quick-insert-mode-map key command))
+  (loop for (key command) in lyqi:custom-key-map
+        if (stringp command)
+        do (define-key lyqi:quick-insert-mode-map
+             key (eval `(lyqi:define-string-insert-command ,command))) ;; urgh
+        else do (define-key lyqi:quick-insert-mode-map key command)))
+
 (eval-when (load)
   (setq lyqi:normal-mode-map (make-sparse-keymap))
   (define-key lyqi:normal-mode-map "\C-cq" 'lyqi:toggle-quick-edit-mode)
-  ;; TODO: more key bindings
-  (setq lyqi:quick-insert-mode-map (copy-keymap lyqi:normal-mode-map))
-  (loop for (key command) in (if (eql lyqi:keyboard-mapping 'azerty)
-                                 lyqi:+azerty-mode-map+
-                                 lyqi:+qwerty-mode-map+)
-        do (define-key lyqi:quick-insert-mode-map key command))
-  (loop for (key command) in lyqi:custom-key-map
-        do (define-key lyqi:quick-insert-mode-map key command)))
+  ;; TODO: more key bindings...
+  (lyqi:force-mode-map-definition))
 
 ;;;
 ;;; Header line
@@ -234,10 +311,12 @@ In quick insertion mode:
   ;; buffer syntax
   (make-local-variable 'lp:*current-syntax*)
   (unless lp:*current-syntax*
-    (setq lp:*current-syntax*
-          (make-instance 'lyqi:lilypond-syntax
-                         :language (lyqi:select-language (first lyqi:prefered-languages))
-                         :relative-mode (eql lyqi:prefered-octave-mode 'relative))))
+    (let ((lang (lyqi:detect-buffer-language)))
+      (setq lp:*current-syntax*
+            (make-instance 'lyqi:lilypond-syntax
+                           :language (lyqi:select-language lang)
+                           :relative-mode (eql lyqi:prefered-octave-mode 'relative)))
+      (pushnew lang (slot-value lp:*current-syntax* 'possible-languages))))
   (lp:parse-and-highlight-buffer)
   ;; header line shows info on lyqi mode
   ;; TODO: custom variable to turn off header line
