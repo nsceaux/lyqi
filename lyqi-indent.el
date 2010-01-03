@@ -1,9 +1,7 @@
-;;; lyqi-indent.el
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Indentation commands
+;;;
 
 (require 'lp-base)
 (require 'lyqi-syntax)

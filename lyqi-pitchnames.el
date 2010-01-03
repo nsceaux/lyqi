@@ -1,10 +1,7 @@
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2003-2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
 ;;; LilyPond pitchnames
+;;;
 
 (defconst lyqi:+italian-pitchnames+
   '(("dobb" 0 -4) ("dobsb" 0 -3) ("dob" 0 -2) ("dosb" 0 -1)

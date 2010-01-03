@@ -1,12 +1,8 @@
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
 ;;; Customization
 ;;;
+
 (defgroup lyqi nil
   "LilyPond quick insert mode."
   :prefix "lyqi:"
@@ -76,6 +72,13 @@ files located in other places in \"~/Documents/MyProjects\"."
                                            (const :tag "Dutch" nederlands)
                                            (const :tag "German" deutsch)
                                            (const :tag "English" english)))))
+
+(defcustom lyqi:midi-backend nil
+  "Midi backend to use to play notes when entering music in quick insert mode: 'osx or 'alsa"
+  :group 'lyqi
+  :type '(choice (const :tag "Linux/ALSA backend (lyqikbd)" alsa)
+                 (const :tag "Mac OS X backend (MidiScript)" osx)
+                 (const :tag "None" nil)))
 
 ;;;
 ;;; Faces

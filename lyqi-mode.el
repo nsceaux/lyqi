@@ -1,8 +1,7 @@
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Lyqi mode
+;;;
 
 (eval-when-compile (require 'cl))
 (require 'eieio)
@@ -10,6 +9,7 @@
 (require 'lyqi-custom)
 (require 'lyqi-syntax)
 (require 'lyqi-indent)
+(require 'lyqi-midi)
 (require 'lyqi-editing-commands)
 
 ;;; TODO: function for detecting note language
@@ -51,11 +51,11 @@ Otherwise, return NIL."
 (defun lyqi:detect-buffer-language ()
   "Detect language used in current buffer.
 
-1) if \include \"<language>.ly\" is found is the buffer, use that language
-2) if the buffer filename is in one of the directories listed in
+- if \include \"<language>.ly\" is found is the buffer, use that language
+- if the buffer filename is in one of the directories listed in
 `lyqi:projects-language', then use the specified language
-3) try to detect note names in the buffer
-4) otherwise, use the prefered language."
+- try to detect note names in the buffer
+- otherwise, use the prefered language."
   (save-excursion
     (goto-char (point-min))
     (or (and (re-search-forward "\\\\include \"\\(italiano\\|english\\|deutsch\\)\\.ly\"" nil t)
@@ -321,6 +321,9 @@ In quick insertion mode:
   ;; header line shows info on lyqi mode
   ;; TODO: custom variable to turn off header line
   (lyqi:set-header-line-format)
+  ;; midi backend
+  (lyqi:start-midi-backend)
+  ;; default mode-map
   (use-local-map lyqi:normal-mode-map))
 
 (provide 'lyqi-mode)

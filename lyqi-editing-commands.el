@@ -1,13 +1,13 @@
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Editing commands
+;;;
 
-(eval-when-compile (require 'cl))
+(require 'cl)
 (require 'lp-base)
 (require 'lyqi-pitchnames)
 (require 'lyqi-syntax)
+(require 'lyqi-midi)
 
 (defmacro lyqi:save-excursion-unless-farther (&rest body)
   (let ((final-position (gensym "final-position"))
@@ -222,7 +222,8 @@ searching as soon as a rest, skip, etc is found."
                                ((forced) "!")
                                ((cautionary) "?")
                                (t ""))))
-      (insert (format "%s%s%s" note-string octave-string accidental-string)))))
+      (insert (format "%s%s%s" note-string octave-string accidental-string))))
+  (lyqi:play-note note))
 
 (defun lyqi:re-insert-note (syntax note)
   (goto-char (lp:marker note))
@@ -231,14 +232,19 @@ searching as soon as a rest, skip, etc is found."
     (lyqi:insert-note syntax note)))
 
 (defun lyqi:insert-note-by-pitch (pitch)
-  (let ((syntax (lp:current-syntax)))
-    (combine-after-change-calls
-      (lyqi:maybe-insert-space)
-      (lyqi:insert-note syntax
-                        (make-instance 'lyqi:note-lexeme
-                                       :pitch pitch
-                                       :alteration (aref (slot-value syntax 'alterations)
-                                                         pitch))))))
+  (let* ((syntax (lp:current-syntax))
+         (previous-note (lyqi:find-note-backward syntax (point))))
+    (with-slots ((pitch0 pitch) (octave0 octave-modifier)) previous-note
+      (let ((new-note (make-instance 'lyqi:note-mixin
+                                     :pitch pitch
+                                     :alteration (aref (slot-value syntax 'alterations)
+                                                       pitch)
+                                     :octave-modifier (cond ((> (- pitch pitch0) 3) (1- octave0))
+                                                            ((> (- pitch0 pitch) 3) (1+ octave0))
+                                                            (t octave0)))))
+        (combine-after-change-calls
+          (lyqi:maybe-insert-space)
+          (lyqi:insert-note syntax new-note))))))
 
 (defun lyqi:insert-note-c ()
   "Insert a c/do note at point"

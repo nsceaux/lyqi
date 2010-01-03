@@ -1,8 +1,7 @@
-;;; Lexing and Parsing for emacs modes
-;;; Mainly inspired by Drei component of McClim
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
+;;; Base incremental lexing and parsing
+;;;
 
 (eval-when-compile (require 'cl))
 (require 'eieio)
@@ -49,14 +48,6 @@
 
 (defmethod object-print ((this lp:syntax) &rest strings)
   (format "#<%s>" (object-class this)))
-
-(defmethod lp:debug-display ((this lp:syntax) &optional indent)
-  (let ((indent (or indent 0)))
-    (loop for line = (lp:first-line this) then (lp:next-line line)
-          while line
-          do (lp:debug-display line (+ indent 2))
-          do (princ "\n"))
-    t))
 
 ;;;
 ;;; The "parse tree" of a buffer is represented as a double-linked
@@ -123,18 +114,6 @@ To perform a backward search on forms from (point), do e.g.:
             return (values (first forms) line (rest forms))
             finally return (lp:previous-form line)))))
 
-(defmethod lp:debug-display ((this lp:line-parse) &optional indent)
-  (let ((indent (or indent 0)))
-    (princ
-     (format "%s[%s] %s (%s forms)\n"
-             (make-string indent ?\ )
-             (marker-position (lp:marker this))
-             (object-class (slot-value this 'parser-state))
-             (length (lp:line-forms this))))
-    (loop for form in (lp:line-forms this)
-          do (lp:debug-display form (+ indent 2)))
-    t))
-
 ;;; Base class for forms and lexemes
 (defclass lp:parser-symbol ()
   ((marker :initform nil
@@ -175,15 +154,6 @@ To perform a backward search on forms from (point), do e.g.:
 (defmethod lp:string ((this lp:parser-symbol))
   (with-slots (marker size) this
     (buffer-substring-no-properties marker (+ marker size))))
-
-(defmethod lp:debug-display ((this lp:parser-symbol) &optional indent)
-  (let ((indent (or indent 0)))
-    (princ (format "%s[%s-%s] %s: %s\n"
-                   (make-string indent ?\ )
-                   (marker-position (lp:marker this))
-                   (+ (lp:marker this) (lp:size this))
-                   (object-class this)
-                   (lp:string this)))))
 
 ;;; Forms (produced by reducing lexemes)
 (defclass lp:form (lp:parser-symbol) ())

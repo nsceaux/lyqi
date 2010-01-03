@@ -1,10 +1,9 @@
-;;; Part of lyqi, a major emacs mode derived from LilyPond-Mode,
-;;; for quick note insertion while editing GNU LilyPond music scores.
-;;; 
-;;; (c) copyright 2009 Nicolas Sceaux <nicolas.sceaux@free.fr>
-;;; See http://nicolas.sceaux.free.fr/lilypond/
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; LilyPond syntax
+;;;
 
-(eval-when-compile (require 'cl))
+(require 'cl)
 (require 'eieio)
 (require 'lp-base)
 (require 'lyqi-pitchnames)
