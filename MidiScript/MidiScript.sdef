@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Dictionary">
+  <suite name="MidiScipt Scripting" code="MiSS" description="Commands and classes for MidiScript scripting">
+    <!--
+    <class name="application" code="capp" description="Adding to application delegate.">
+      <cocoa class="NSApplication"/>
+    </class>    
+    <command name="play" code="playnote" description="Play a note">
+      <cocoa class="PlayScriptCommand">
+      <direct-parameter name="direct parameter" description="The note pitch, from 0 to 127" type="integer"/>
+      <parameter name="during" code="leng" description="the note length, in ms." type="integer">
+        <cocoa key="length"/>
+      </parameter>
+    </command>
+    -->
+    <command name="playnote" code="playnote" description="Play a short note (0.1 second)">
+      <cocoa class="PlayScriptCommand"/>
+      <direct-parameter name="direct parameter" description="The note pitch, from 0 to 127" type="integer"/>
+    </command>
+  </suite>
+</dictionary>
