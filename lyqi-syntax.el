@@ -123,8 +123,6 @@
 
 (defclass lyqi:one-line-comment-lexeme (lp:comment-lexeme)
   ((level :initarg :level)))
-(defclass lyqi:multi-line-comment-start-lexeme (lp:comment-lexeme lp:opening-delimiter-lexeme) ())
-(defclass lyqi:multi-line-comment-end-lexeme (lp:comment-lexeme lp:closing-delimiter-lexeme) ())
 (defclass lyqi:multi-line-comment-lexeme (lp:comment-lexeme) ())
 
 (defclass lyqi:base-duration-lexeme (lp:lexeme) ())
@@ -248,13 +246,13 @@ Oterwise, return NIL."
          (values parser-state (lyqi:reduce-lexemes parser-state) nil))
         ;; multi-line comment
         ((looking-at "%{")
-         (lyqi:with-forward-match (marker size)
-           (values (lyqi:make-parser-state 'lyqi:comment-parser-state
-                                           parser-state)
+         (multiple-value-bind (lexeme comment-ended)
+             (lyqi:lex-comment syntax 'lyqi:multi-line-comment-lexeme t)
+           (values (if comment-ended
+                       parser-state
+                       (lyqi:make-parser-state 'lyqi:comment-parser-state parser-state))
                    (lyqi:reduce-lexemes parser-state
-                                        (make-instance 'lyqi:multi-line-comment-start-lexeme
-                                                       :marker marker
-                                                       :size size))
+                                        lexeme)
                    (not (eolp)))))
         ;; one line comment
         ((looking-at "\\(%+\\).*$")
@@ -426,33 +424,13 @@ Oterwise, return NIL."
             (not (eolp)))))
 
 (defmethod lp:lex ((parser-state lyqi:comment-parser-state) syntax)
-  (loop with marker = (point-marker)
-        with size = 0
-        for char = (char-after)
-        for next-char = (char-after (1+ (point)))
-        if (eolp)
-        ;; end of line => comment is not finished
-        return (values parser-state
-                       (if (> size 0)
-                           (list (make-instance 'lyqi:multi-line-comment-lexeme
-                                                :marker marker
-                                                :size size))
-                           nil)
-                       nil)
-        else if (and next-char (eql char ?\%) (eql next-char ?\}))
-        ;; comment end
-        return (let ((end-marker (point-marker)))
-                 (forward-char 2)
-                 (values (lp:next-parser-state parser-state)
-                         (list (make-instance 'lyqi:multi-line-comment-lexeme
-                                              :marker marker
-                                              :size size)
-                               (make-instance 'lyqi:multi-line-comment-end-lexeme
-                                              :marker end-marker
-                                              :size 2))
-                         (not (eolp))))
-        ;; continue scan
-        else do (forward-char 1) and do (incf size)))
+  (multiple-value-bind (lexeme comment-ended)
+      (lyqi:lex-comment syntax 'lyqi:multi-line-comment-lexeme nil)
+    (values (if comment-ended
+                (lp:next-parser-state parser-state)
+                parser-state)
+            (list lexeme)
+            (not (eolp)))))
 
 (defmethod lp:lex ((parser-state lyqi:chord-parser-state) syntax)
   (lyqi:skip-whitespace)
@@ -612,6 +590,37 @@ Return two values:
           ;; an escaped double quote
           else if (and (eql char ?\\) next-char (eql next-char ?\"))
           do (forward-char 2) and do (incf size 2)
+          ;; continue scan
+          else do (forward-char 1) and do (incf size))))
+
+(defun lyqi:lex-comment (syntax lexeme-class with-start)
+  "Lex a multi line lilypond comment. If `with-start' is true,
+then %{ is supposed to be found after point. If `with-start' is
+NIL, then the opening %{ is not searched.
+
+Return two values:
+- a comment lexeme, of class `lexeme-class'
+- T if the comment is terminated, or NIL otherwise."
+  (let ((marker (point-marker))
+        (size 0))
+    (when with-start
+      (lyqi:with-forward-match ("%{" m s)
+        (incf size s)))
+    (loop for char = (char-after)
+          for next-char = (char-after (1+ (point)))
+          if (eolp)
+          ;; end of line => comment is not finished
+          return (values (make-instance lexeme-class
+                                        :marker marker
+                                        :size size)
+                         nil)
+          else if (and next-char (eql char ?\%) (eql next-char ?\}))
+          ;; comment end
+          do (forward-char 2) and do (incf size 2)
+          and return (values (make-instance lexeme-class
+                                            :marker marker
+                                            :size size)
+                             t)
           ;; continue scan
           else do (forward-char 1) and do (incf size))))
 
