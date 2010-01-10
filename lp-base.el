@@ -305,9 +305,7 @@ Default values:
 (defun lp:parse-line (syntax parser-state)
   "Return a form list, built by parsing current buffer starting
 from current point up to the end of the current line."
-  (loop with end-point = (point-at-eol)
-        for finished = nil then (>= (point) end-point)
-        for (new-parser-state forms continue)
+  (loop for (new-parser-state forms continue)
         = (lp:lex (or parser-state (lp:default-parser-state syntax)) syntax)
         then (lp:lex new-parser-state syntax)
         nconc forms into result
