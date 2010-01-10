@@ -24,6 +24,11 @@ guessed."
   :type '(choice (const :tag "Absolute octaves" absolute)
                  (const :tag "Relative octaves" relative)))
 
+(defcustom lyqi:header-line-display t
+  "Display the header line on lyqi buffers."
+  :group 'lyqi
+  :type 'boolean)
+
 (defcustom lyqi:keyboard-mapping 'qwerty
   "Keyboard mapping, used to associate keys to commands in quick
 insert mode map."
@@ -80,6 +85,21 @@ files located in other places in \"~/Documents/MyProjects\"."
                  (const :tag "Mac OS X backend (MidiScript)" osx)
                  (const :tag "None" nil)))
 
+(defcustom lyqi:lilypond-command "lilypond"
+  "Command used to compile .ly files"
+  :group 'lyqi
+  :type 'string)
+
+(defcustom lyqi:pdf-command "xpdf"
+  "Command used to open .pdf files"
+  :group 'lyqi
+  :type 'string)
+
+(defcustom lyqi:midi-command "timidity"
+  "Command used to open .midi files"
+  :group 'lyqi
+  :type 'string)
+
 ;;;
 ;;; Faces
 ;;;
@@ -89,40 +109,39 @@ files located in other places in \"~/Documents/MyProjects\"."
   :prefix "lyqi:"
   :group 'lyqi)
 
-;; TODO: these are debug faces, define real ones.
 (defface lyqi:note-face
-  '((((class color) (background dark)) :foreground "blue")
-    (((class color) (background light)) :foreground "blue"))
+  '((((class color) (background light)) :foreground "SlateBlue")
+    (((class color) (background dark)) :foreground "LightBlue1"))
   "Face for notes."
   :group 'lyqi-faces)
 
 (defface lyqi:rest-face
-  '((((class color) (background dark)) :foreground "green")
-    (((class color) (background light)) :foreground "green"))
+  '((((class color) (background light)) :foreground "SeaGreen")
+    (((class color) (background dark)) :foreground "DarkSeaGreen1"))
   "Face for rests and skips."
   :group 'lyqi-faces)
 
 (defface lyqi:duration-face
-  '((((class color) (background dark)) :foreground "red")
-    (((class color) (background light)) :foreground "red"))
+  '((((class color) (background light)) :foreground "VioletRed")
+    (((class color) (background dark)) :foreground "LightPink"))
   "Face for rests and skips."
   :group 'lyqi-faces)
 
 (defface lyqi:verbatim-face
-  '((((class color) (background dark)) :background "yellow")
-    (((class color) (background light)) :background "yellow"))
-  "Face for rests and skips."
+  '((((class color) (background light)))
+    (((class color) (background dark))))
+  "Face for verbatim text."
   :group 'lyqi-faces)
 
 (defface lyqi:scheme-face
-  '((((class color) (background dark)) :background "violet")
-    (((class color) (background light)) :background "violet"))
+  '((((class color) (background light)) :foreground "DarkOrange4")
+    (((class color) (background dark)) :foreground "wheat"))
   "Face for scheme forms."
   :group 'lyqi-faces)
 
 (defface lyqi:delimiter-face
-  '((((class color) (background dark)) :foreground "grey")
-    (((class color) (background light)) :foreground "grey"))
+  '((((class color) (background light)) :foreground "grey40")
+    (((class color) (background dark)) :foreground "grey90"))
   "Face for delimiters."
   :group 'lyqi-faces)
 
