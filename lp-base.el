@@ -49,6 +49,15 @@
 (defmethod object-print ((this lp:syntax) &rest strings)
   (format "#<%s>" (object-class this)))
 
+(defmethod lp:debug-display ((this lp:syntax) &optional indent)
+  (let ((indent (or indent 0)))
+    (loop for line = (lp:first-line this) then (lp:next-line line)
+          for i from 1
+          while line
+          do (princ (format "Line %d " i))
+          do (lp:debug-display line indent))
+    t))
+
 ;;;
 ;;; The "parse tree" of a buffer is represented as a double-linked
 ;;; list of lines, each line containing a list of forms, each form
@@ -75,6 +84,18 @@
             (object-class this)
             (marker-position (lp:marker this))
             (length (lp:line-forms this))))
+
+(defmethod lp:debug-display ((this lp:line-parse) &optional indent)
+  (let ((indent (or indent 0)))
+    (princ
+     (format "%s[%s] %s (%s forms)\n"
+             (make-string indent ?\ )
+             (marker-position (lp:marker this))
+             (object-class (slot-value this 'parser-state))
+             (length (lp:line-forms this))))
+    (loop for form in (lp:line-forms this)
+          do (lp:debug-display form (+ indent 2)))
+    t))
 
 (defun lp:link-lines (first next)
   (when first
@@ -150,6 +171,15 @@ To perform a backward search on forms from (point), do e.g.:
     (format "#<%s [%s-%s]>"
             (object-class this)
             (or start "?") (or end "?"))))
+
+(defmethod lp:debug-display ((this lp:parser-symbol) &optional indent)
+  (let ((indent (or indent 0)))
+    (princ (format "%s[%s-%s] %s: %s\n"
+                   (make-string indent ?\ )
+                   (marker-position (lp:marker this))
+                   (+ (lp:marker this) (lp:size this))
+                   (object-class this)
+                   (lp:string this)))))
 
 (defmethod lp:string ((this lp:parser-symbol))
   (with-slots (marker size) this
@@ -355,13 +385,13 @@ two values: the first and the last parse line."
                      (point-3/4 (/ (+ point-2/4 point-4/4) 2)))
                 (cond ((<= point-3/4 end-position)
                        (values 'backward (lp:last-line syntax)))
-                      ((<= position point-1/4)
+                      ((<= beginning-position point-1/4)
                        (values 'forward (lp:first-line syntax)))
-                      ((and (<= point-2/4 position) (<= position point-3/4))
+                      ((and (<= point-2/4 beginning-position) (<= beginning-position point-3/4))
                        (values 'forward current-line))
                       ((and (<= point-1/4 end-position) (<= end-position point-2/4))
                        (values 'backward current-line))
-                      (t ;; (<= point-1/4 position point-1/2 end-position point-3/4)
+                      (t ;; (<= point-1/4 beginning-position point-1/2 end-position point-3/4)
                        (values 'both current-line))))
               (let* ((point-1/2 (/ (+ (point-max) (point-min)) 2)))
                 (if (>= end-position point-1/2)
