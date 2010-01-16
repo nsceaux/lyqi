@@ -8,3 +8,9 @@ lyqi.el: $(EL_SOURCES)
 	-e 's/(provide .lp-.*)//' -e 's/(require .lp-.*)//' > $@
 	echo "(provide 'lyqi)" >> $@
 
+osx:
+	make lyqi.el
+	cd EmacsPointAndClick && make all
+	cd MidiScript && make all
+
+.PHONY: osx linux

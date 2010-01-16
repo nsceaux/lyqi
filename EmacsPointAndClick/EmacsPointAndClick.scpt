@@ -2,12 +2,9 @@
 property urlPrefix : "textedit://"
 
 on open location texteditURL
-        beep 3
-        --display dialog texteditURL
-	
 	-- strip prefix	
-	set the character_count to the number of characters of the urlPrefix
-	set the emacsclientURL to (characters (the character_count + 1) thru -1 of the texteditURL) as string
+	set the characterCount to the number of characters of the urlPrefix
+	set the emacsclientURL to (characters (the characterCount + 1) thru -1 of the texteditURL) as string
 	
 	-- extract PATH LINE and COLUMN
 	set AppleScript's text item delimiters to ":"
