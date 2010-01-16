@@ -18,17 +18,6 @@ guessed."
               (const :tag "German" deutsch)
               (const :tag "English" english)))
 
-(defcustom lyqi:prefered-octave-mode 'relative
-  "Prefered octave mode, used in new files."
-  :group 'lyqi
-  :type '(choice (const :tag "Absolute octaves" absolute)
-                 (const :tag "Relative octaves" relative)))
-
-(defcustom lyqi:header-line-display t
-  "Display the header line on lyqi buffers."
-  :group 'lyqi
-  :type 'boolean)
-
 (defcustom lyqi:keyboard-mapping 'qwerty
   "Keyboard mapping, used to associate keys to commands in quick
 insert mode map."

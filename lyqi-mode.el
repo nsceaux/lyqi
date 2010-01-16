@@ -81,23 +81,6 @@ Otherwise, return NIL."
     (lp:parse-and-highlight-buffer)))
 
 ;;;
-;;; Misc commands
-;;;
-
-(defun lyqi:toggle-relative-mode (&optional syntax)
-  (interactive)
-  (let ((syntax (or syntax (lp:current-syntax))))
-    (set-slot-value syntax 'relative-mode
-                    (not (slot-value syntax 'relative-mode))))
-  (force-mode-line-update))
-
-(defun lyqi:toggle-header-line (&optional syntax)
-  (interactive)
-  (setq lyqi:header-line-display (not lyqi:header-line-display))
-  (lyqi:set-header-line-format)
-  (force-mode-line-update))
-
-;;;
 ;;; Mode maps
 ;;;
 (defvar lyqi:normal-mode-map nil
@@ -224,147 +207,91 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
 ;;; Header line
 ;;;
 
-;;; TODO: header button for deactivating it
-
-(defun lyqi:header-line-select-next-language (event)
+(defun lyqi:mode-line-select-next-language (event)
   "Like `lyqi:select-next-language', but temporarily select EVENT's window."
   (interactive "e")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:select-next-language)))
 
-(defun lyqi:header-line-toggle-relative-mode (event)
-  "Like `lyqi:toggle-relative-mode', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:toggle-relative-mode)))
 
-(defun lyqi:header-line-toggle-quick-edit-mode (event)
+(defun lyqi:mode-line-toggle-quick-edit-mode (event)
   "Like `lyqi:toggle-quick-edit-mode', but temporarily select EVENT's window."
   (interactive "e")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:toggle-quick-edit-mode)))
 
-(defun lyqi:header-line-toggle-header-line (event)
-  "Like `lyqi:toggle-header-line', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:toggle-header-line)))
-
-(defun lyqi:header-line-set-global-master-file (event filename)
+(defun lyqi:mode-line-set-global-master-file (event filename)
   "Like `lyqi:set-global-master-file', but temporarily select EVENT's window."
   (interactive "e\nfGlobal master file: ")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:set-global-master-file filename)))
 
-(defun lyqi:header-line-set-buffer-master-file (event filename)
+(defun lyqi:mode-line-set-buffer-master-file (event filename)
   "Like `lyqi:set-buffer-master-file', but temporarily select EVENT's window."
   (interactive "e\nfBuffer master file:")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:set-buffer-master-file filename)))
 
-(defun lyqi:header-line-unset-master-file (event)
+(defun lyqi:mode-line-unset-master-file (event)
   "Like `lyqi:unset-master-file', but temporarily select EVENT's window."
   (interactive "e")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:unset-master-file)))
 
-(defun lyqi:header-line-compile-ly (event)
-  "Like `lyqi:compile-ly', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:compile-ly)))
-
-(defun lyqi:header-line-open-pdf (event)
-  "Like `lyqi:compile-ly', but temporarily select EVENT's window."
-  (interactive "e")
-  (save-selected-window
-    (select-window (posn-window (event-start event)))
-    (lyqi:open-pdf)))
-
-(defun lyqi:header-line-lyqi-mode (event)
+(defun lyqi:mode-line-lyqi-mode (event)
   "Like `lyqi-mode', but temporarily select EVENT's window."
   (interactive "e")
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi-mode)))
 
-(defun lyqi:set-header-line-format ()
-  (setq header-line-format
-        (when lyqi:header-line-display
-          '(" "
-            (:eval (propertize (symbol-name (slot-value (lyqi:language (lp:current-syntax)) 'name))
-                               'help-echo "select next language"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-select-next-language)))))
-            " | "
-            (:eval (propertize (if (slot-value (lp:current-syntax) 'relative-mode)
-                                   "relative"
-                                   "absolute")
-                               'help-echo "toggle octave mode"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-toggle-relative-mode)))))
-            " mode | "
-            (:eval (propertize (if (slot-value (lp:current-syntax) 'quick-edit-mode)
-                                   "quick insert"
-                                   "normal")
-                               'help-echo "toggle edit mode"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-toggle-quick-edit-mode)))))
-            " edition"
-            " | Master file: "
-            (:eval (propertize (if (lyqi:master-file)
-                                   (file-name-nondirectory (lyqi:master-file))
-                                   "(none)")
-                               'help-echo "mouse-1: set global master file, mouse-2: set buffer-local master file, mouse-3: unset master file"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-set-global-master-file)
-                                             (mouse-2 . lyqi:header-line-set-buffer-master-file)
-                                             (mouse-3 . lyqi:header-line-unset-master-file)))))
-            " | "
-            (:eval (propertize "compile"
-                               'help-echo "mouse-1: compile .ly file"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-compile-ly)))))
-            " | "
-            (:eval (propertize "open PDF"
-                               'help-echo "mouse-1: open .pdf file"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-open-pdf)))))
-            " | "
-            (:eval (propertize "hide"
-                               'help-echo "hide header line"
-                               'mouse-face 'mode-line-highlight
-                               'local-map '(keymap
-                                            (header-line
-                                             keymap (mouse-1 . lyqi:header-line-toggle-header-line)))))
-            (:eval (if after-change-functions "" " | "))
-            (:eval (if after-change-functions
-                       ""
-                       (propertize "¡BUG!"
-                                   'help-echo "re-run lyqi-mode"
-                                   'mouse-face 'mode-line-highlight
-                                   'local-map '(keymap (header-line
-                                                        keymap (mouse-1 . lyqi:header-line-lyqi-mode))))))))))
+(defun lyqi:set-mode-line-modes ()
+  (setq mode-line-modes
+        '("%[("
+          (:eval (propertize (if (slot-value (lp:current-syntax) 'quick-edit-mode)
+                                 (format "%s:quick insert" mode-name)
+                                 mode-name)
+                             'help-echo "mouse-1: toggle edit mode, mouse-2: major mode help, mouse-3: toggle minor modes"
+                             'mouse-face 'mode-line-highlight
+                             'local-map '(keymap
+                                          (mode-line
+                                           keymap (down-mouse-3 . mode-line-mode-menu-1)
+                                           (mouse-2 . describe-mode)
+                                           (down-mouse-1 . lyqi:mode-line-toggle-quick-edit-mode)))))
+          ", "
+          (:eval (propertize (format "lang: %s"
+                                     (substring (symbol-name (slot-value (lyqi:language (lp:current-syntax)) 'name))
+                                                0 2))
+                             'help-echo "select next language"
+                             'mouse-face 'mode-line-highlight
+                             'local-map '(keymap
+                                          (mode-line
+                                           keymap (mouse-1 . lyqi:mode-line-select-next-language)))))
+          (:eval (if (lyqi:defined-master-file) ", " ""))
+          (:eval (if (lyqi:defined-master-file)
+                     (propertize (format "Master file: %s" (file-name-nondirectory (lyqi:master-file)))
+                                 'help-echo "mouse-1: set global master file, mouse-2: unset master file, mouse-3 set buffer-local master file"
+                                 'mouse-face 'mode-line-highlight
+                                 'local-map '(keymap
+                                              (mode-line
+                                               keymap (mouse-1 . lyqi:mode-line-set-global-master-file)
+                                               (mouse-3 . lyqi:mode-line-set-buffer-master-file)
+                                               (mouse-2 . lyqi:mode-line-unset-master-file))))
+                     ""))
+          (:eval (if after-change-functions "" ", "))
+          (:eval (if after-change-functions
+                     ""
+                     (propertize "¡BUG!"
+                                 'help-echo "re-run lyqi-mode"
+                                 'mouse-face 'mode-line-highlight
+                                 'local-map '(keymap (mode-line
+                                                      keymap (mouse-1 . lyqi:mode-line-lyqi-mode))))))
+          ")%]  ")))
 
 ;;;
 ;;; lyqi-mode
@@ -402,9 +329,9 @@ In quick insertion mode:
                            :relative-mode (eql lyqi:prefered-octave-mode 'relative)))
       (pushnew lang (slot-value lp:*current-syntax* 'possible-languages))))
   (lp:parse-and-highlight-buffer)
-  ;; header line shows info on lyqi mode
-  ;; TODO: custom variable to turn off header line
-  (lyqi:set-header-line-format)
+  ;; mode line modes
+  (make-local-variable 'mode-line-modes)
+  (lyqi:set-mode-line-modes)
   ;; midi backend
   (lyqi:start-midi-backend)
   ;; default mode-map

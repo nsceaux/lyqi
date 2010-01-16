@@ -28,6 +28,10 @@
         (and (string-equal (file-name-extension pathname) "ly")
              pathname))))
 
+(defun lyqi:defined-master-file ()
+  (or lyqi:buffer-master-file
+      lyqi:global-master-file))
+
 (defun lyqi:set-buffer-master-file (filename)
   (interactive "fBuffer master file:")
   (setq lyqi:buffer-master-file filename))
