@@ -39,8 +39,12 @@ insert mode map."
 (defcustom lyqi:custom-key-map nil
   "Key/command alist, for customizing the quick insertion mode map.
 
-The keys of the alist are strings meaning a sequence of
-keystrokes, e.g. \"a\" for key a, or \"\\C-ca\" for C-c a.
+The keys of the alist are eiter strings or vector meaning a sequence of
+keystrokes, e.g:
+   \"a\"   for key a
+   \"\\C-ca\" for C-c a
+   [enter] for RET
+
 Values can be either an existing command, or a string, in which
 case a command which inserts the given string will be implicitely
 created.
@@ -58,7 +62,7 @@ force the redefinition of `lyqi:quick-insert-mode-map', invoke
 command `lyqi:force-mode-map-definition'.
 "
   :group 'lyqi
-  :type '(alist :key-type string :value-type (group (choice function string))))
+  :type '(alist :key-type (choice string vector) :value-type (choice function string)))
 
 (defcustom lyqi:projects-language nil
   "Specify which note language use for projects in given directories.

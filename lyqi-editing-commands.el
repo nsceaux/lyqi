@@ -353,4 +353,15 @@ sharp -> neutral -> flat"
   (interactive)
   (lyqi:change-octave 0))
 
+;;;
+;;; misc editing commands
+;;;
+
+(defun lyqi:insert-pipe-and-return ()
+  "Insert a bar check, a line feed, and indent the line"
+  (interactive)
+  (lyqi:maybe-insert-space)
+  (insert "|\n")
+  (lyqi:indent-line))
+
 (provide 'lyqi-editing-commands)
