@@ -132,6 +132,12 @@ files located in other places in \"~/Documents/MyProjects\"."
   "Face for scheme forms."
   :group 'lyqi-faces)
 
+(defface lyqi:scheme-keyword-face
+  '((((class color) (background light)) :foreground "OrangeRed")
+    (((class color) (background dark)) :foreground "tan"))
+  "Face for scheme keyword forms."
+  :group 'lyqi-faces)
+
 (defface lyqi:delimiter-face
   '((((class color) (background light)) :foreground "grey40")
     (((class color) (background dark)) :foreground "grey90"))

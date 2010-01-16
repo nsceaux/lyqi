@@ -1,10 +1,7 @@
-Multi line comments
 Scheme macro lexing (with nb of special args)
-scheme strings
 \override ...
 Built-in music functions and variables
 auto completion
 music functions argument list
-help -> manual
-overlays iso text properties
+help shortcut -> manual
 relative mode

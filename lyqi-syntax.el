@@ -62,8 +62,6 @@
   ((language              :initarg :language
                           :accessor lyqi:language)
    (possible-languages)
-   (relative-mode         :initarg :relative-mode
-                          :initform nil)
    (quick-edit-mode       :initform nil)
    (alterations)))
 
@@ -116,6 +114,8 @@
 (defclass lyqi:sequential-start-lexeme (lp:opening-delimiter-lexeme) ())
 (defclass lyqi:sequential-end-lexeme (lp:closing-delimiter-lexeme) ())
 
+(defclass lyqi:ornementation-lexeme (lyqi:verbatim-lexeme) ())
+
 (defclass lyqi:chord-start-lexeme (lp:lexeme) ())
 (defclass lyqi:chord-end-lexeme (lp:lexeme) ())
 
@@ -141,7 +141,10 @@ and NIL if it is an implicit duration lexeme.")
 ;; scheme
 (defclass lyqi:scheme-lexeme (lp:lexeme) ())
 (defclass lyqi:scheme-number-lexeme (lyqi:scheme-lexeme) ())
-(defclass lyqi:scheme-symbol-lexeme (lyqi:scheme-lexeme) ())
+(defclass lyqi:scheme-symbol-lexeme (lyqi:scheme-lexeme)
+  ((special-args :initarg :special-args
+                 :initform nil)))
+(defclass lyqi:scheme-keyword-lexeme (lyqi:scheme-symbol-lexeme) ())
 (defclass lyqi:sharp-lexeme (lyqi:scheme-lexeme) ())
 (defclass lyqi:left-parenthesis-lexeme (lyqi:scheme-lexeme
                                         lp:opening-delimiter-lexeme) ())
@@ -208,6 +211,9 @@ Oterwise, return NIL."
 
 (defmethod lp:face ((this lyqi:scheme-lexeme))
   '(face lyqi:scheme-face))
+
+(defmethod lp:face ((this lyqi:scheme-keyword-lexeme))
+  '(face lyqi:scheme-keyword-face))
 
 (defmethod lp:face ((this lp:delimiter-lexeme))
   '(face lyqi:delimiter-face))
@@ -305,7 +311,7 @@ Oterwise, return NIL."
                                                                   :size size))
                               (not (eolp)))))))))
         ;; a backslashed keyword, command or variable
-        ((looking-at "\\\\[a-zA-Z]+")
+        ((looking-at "[^_-]?\\\\[a-zA-Z]+")
          (lyqi:with-forward-match (marker size)
            (values parser-state
                    (lyqi:reduce-lexemes parser-state
@@ -523,13 +529,27 @@ Oterwise, return NIL."
                    (list (make-instance 'lyqi:scheme-number-lexeme
                                         :marker marker :size size))
                    (not (eolp)))))
-        (t ;; TODO: too permisive for symbols?
+        ;; TODO: literal vectors, etc
+        (t ;; symbols
          (lyqi:with-forward-match ("[^ \t\r\n()]+" marker size)
-           (values parser-state
-                   (list (make-instance 'lyqi:scheme-symbol-lexeme
-                                        :marker marker
-                                        :size size))
-                   (not (eolp)))))))
+           (let* ((symbol-name (match-string-no-properties 0))
+                  (symbol (intern symbol-name)))
+             (destructuring-bind (special-args keyword)
+                 ;; TODO: define a method
+                 (case symbol
+                   ((define-markup-command define-music-function) '(2 t))
+                   ((lambda let define define-public) '(1 t))
+                   ((begin) '(0 t))
+                   ((if cond) '(nil t))
+                   (t '(nil nil)))
+               (values parser-state
+                       (list (make-instance (if keyword
+                                                'lyqi:scheme-keyword-lexeme
+                                                'lyqi:scheme-symbol-lexeme)
+                                            :special-args special-args
+                                            :marker marker
+                                            :size size))
+                       (not (eolp)))))))))
 
 (defmethod lp:lex ((parser-state lyqi:embedded-toplevel-parser-state) syntax)
   (lyqi:skip-whitespace)

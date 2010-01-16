@@ -13,8 +13,6 @@
 (require 'lyqi-editing-commands)
 (require 'lyqi-compile-commands)
 
-;;; TODO: function for detecting use of \relative in file
-
 ;;;
 ;;; Language selection
 ;;;
@@ -325,8 +323,7 @@ In quick insertion mode:
     (let ((lang (lyqi:detect-buffer-language)))
       (setq lp:*current-syntax*
             (make-instance 'lyqi:lilypond-syntax
-                           :language (lyqi:select-language lang)
-                           :relative-mode (eql lyqi:prefered-octave-mode 'relative)))
+                           :language (lyqi:select-language lang)))
       (pushnew lang (slot-value lp:*current-syntax* 'possible-languages))))
   (lp:parse-and-highlight-buffer)
   ;; mode line modes

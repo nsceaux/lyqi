@@ -81,25 +81,6 @@ if any, of the s-expression containing `indent-line' beginning."
         else if (and in-scheme (= depth 0))
         do (push form sexp-forms)))
 
-(defun lyqi:scheme-operator-special-arg-number (operator-form first-args indent-line-first-form)
-  "Tell how many special argument (which indentation is different
-from other arguments) an operator has.  For instance, `lambda' has
-one special argument (its lambda list):
-  (lambda (args...)
-    ..body..)
-For a function, return NIL: all arguments shall be treated as
-regular function arguments.
-For a macro with no special argument (like `begin'), return 0.
-The result for a macro may depend on its arguments, for instance in the
-case of optional keyword arguments."
-  (let* ((string (lp:string operator-form))
-         (symbol (intern string)))
-    (case symbol
-      ((define-markup-command) 6)
-      ((lambda let define) 1)
-      ((begin) 0)
-      (t nil))))
-
 (defun lyqi:scheme-line-indentation (indent-line)
   "Compute the indentation of a scheme line.  Returns a number of
 spaces from the beginning of the line.
@@ -118,10 +99,7 @@ indented."
                                    first-form))
                (arg-forms (rest sexp-forms))
                (special-args (and operator-form
-                                  (lyqi:scheme-operator-special-arg-number
-                                   operator-form
-                                   arg-forms
-                                   (first (lp:line-forms indent-line)))))
+                                  (slot-value operator-form 'special-args)))
                (next-arg-is-special (and special-args
                                          (> (- special-args (length arg-forms)) 0))))
           (cond (next-arg-is-special
