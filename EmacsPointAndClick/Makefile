@@ -1,14 +1,15 @@
 
-build_script:
-	@echo 'tell application "AppleScript Editor"' > $@
-	@echo '  open "$(PWD)/EmacsPointAndClick.scpt"' >> $@
-	@echo '  save document "EmacsPointAndClick.scpt" as "application" in "$(PWD)/EmacsPointAndClick.app" with stay open' >> $@
-	@echo '  close document "EmacsPointAndClick"' >> $@
-	@echo 'end tell' >> $@
-
-EmacsPointAndClick.app: build_script
-	/usr/bin/osascript $<
-	@perl -i -pe "s|^</dict>|\
+EmacsPointAndClick.app:
+	echo "tell application \"AppleScript Editor\"\n\
+	open \"$(PWD)/EmacsPointAndClick.scpt\"\n\
+	save document \"EmacsPointAndClick.scpt\" as \"application\" in \"$(PWD)/EmacsPointAndClick.app\" with stay open\n\
+	close document \"EmacsPointAndClick\"\n\
+	end tell" | /usr/bin/osascript
+	echo 'APPLepac' > EmacsPointAndClick.app/Contents/PkgInfo
+	perl -i -pe "s|<string>aplt</string>|<string>epac</string>|" EmacsPointAndClick.app/Contents/Info.plist
+	perl -i -pe "s|^</dict>|\
+		<key>CFBundleIdentifier</key>\n\
+		<string>EmacsPointAndClick</string>\n\
 		<key>CFBundleURLTypes</key>\n\
 		<array>\n\
 			<dict>\n\
@@ -20,6 +21,8 @@ EmacsPointAndClick.app: build_script
 				</array>\n\
 			</dict>\n\
 		</array>\n\
+		<key>NSUIElement</key>\n\
+		<true/>\n\
 </dict>|" EmacsPointAndClick.app/Contents/Info.plist
 
 all:

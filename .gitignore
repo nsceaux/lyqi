@@ -3,3 +3,4 @@
 /compile-script
 /lyqi.el
 eieio
+*.app
