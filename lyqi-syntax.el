@@ -195,7 +195,7 @@ Oterwise, return NIL."
 (defmethod lp:fontify ((this lyqi:verbatim-form))
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
-    (set-text-properties start end '(face lyqi:verbatim-face))))
+    (lp:fontify-region start end '(face lyqi:verbatim-face))))
 
 (defmethod lp:face ((this lyqi:note-lexeme))
   '(face lyqi:note-face))
@@ -579,7 +579,7 @@ Return two values:
           if (eolp)
           return (values (make-instance lexeme-class
                                         :marker marker
-                                        :size (1+ size))
+                                        :size size)
                          nil)
           else if (eql char ?\")
           ;; string end

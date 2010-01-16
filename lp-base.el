@@ -79,6 +79,11 @@
               :initarg :next-line
               :accessor lp:next-line)))
 
+(defmethod lp:line-end-position ((this lp:line-parse))
+  (save-excursion
+    (goto-char (lp:marker this))
+    (point-at-eol)))
+
 (defmethod object-print ((this lp:line-parse) &rest strings)
   (format "#<%s [%s] %s forms>"
             (object-class this)
@@ -449,6 +454,8 @@ current syntax parse data (`first-line' and `last-line' slots)."
         (multiple-value-bind (first last state) (lp:parse syntax)
           (set-slot-value syntax 'first-line first)
           (set-slot-value syntax 'last-line last)))
+      ;; remove previous fontification
+      (lp:unfontify syntax)
       ;; fontify the buffer
       (loop for line = (lp:first-line syntax)
             then (lp:next-line line)
@@ -464,6 +471,7 @@ current syntax parse data (`first-line' and `last-line' slots)."
         (lp:parse-line syntax parser-state)
       (set-slot-value line 'forms forms)
       (set-slot-value line 'parser-state parser-state)
+      (lp:unfontify line)
       (lp:fontify line)
       (forward-line 1)
       (lp:update-line-if-different-parser-state (lp:next-line line) next-state syntax))))
@@ -505,7 +513,8 @@ and fontify the changed text.
             ;; fontify new lines
             (loop for line = first-new-line then (lp:next-line line)
                   while line
-                  do (mapcar #'lp:fontify (lp:line-forms line)))
+                  do (lp:unfontify line)
+                  do (lp:fontify line))
             ;; replace the old lines with the new ones in the
             ;; double-linked list
             (if (eql (lp:first-line syntax) first-modified-line)
@@ -537,6 +546,19 @@ and fontify the changed text.
 ;;; Fontification
 ;;;
 
+(defun lp:fontify-region (start end face)
+  (let ((overlay (make-overlay start end nil t nil)))
+    (overlay-put overlay 'face face)))
+
+(defgeneric lp:unfontify (thing)
+  "Remove all fontification from `thing'")
+
+(defmethod lp:unfontify ((this lp:line-parse))
+  (remove-overlays (lp:marker this) (lp:line-end-position this)))
+
+(defmethod lp:unfontify ((this lp:syntax))
+  (remove-overlays))
+
 (defgeneric lp:fontify (parser-symbol)
   "Fontify a lexeme or form")
 
@@ -550,7 +572,7 @@ and fontify the changed text.
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
     (when (> end start)
-      (set-text-properties start end (lp:face this)))))
+      (lp:fontify-region start end (lp:face this)))))
 
 (defmethod lp:fontify ((this lp:form))
   (let ((children (slot-value this 'children)))
