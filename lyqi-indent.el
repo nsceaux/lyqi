@@ -188,12 +188,15 @@ indented."
                             ;; when reaching the first token on line
                             ;; if in lilypond code, then return the line indent
                             if is-line-first-form return (and new-in-lilypond (lyqi:offset-from-bol form)))))
-    (if line-indent
-        (+ line-indent (* new-nesting-level lyqi:indent-level))
-        (lyqi:calc-lilypond-line-indentation (lp:previous-line line)
-                                             embedded-lilypond
-                                             new-nesting-level
-                                             new-in-lilypond))))
+    (cond (line-indent
+           (+ line-indent (* new-nesting-level lyqi:indent-level)))
+          ((lp:previous-line line)
+           (lyqi:calc-lilypond-line-indentation (lp:previous-line line)
+                                                embedded-lilypond
+                                                new-nesting-level
+                                                new-in-lilypond))
+          (t
+           0))))
         
 
 (provide 'lyqi-indent)
