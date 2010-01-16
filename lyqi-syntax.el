@@ -572,7 +572,8 @@ Return two values:
         (size 0))
     (when with-start
       (looking-at "[^\"]*\"")
-      (lp:forward-match))
+      (lp:forward-match)
+      (incf size (- (match-end 0) (match-beginning 0))))
     (loop for char = (char-after)
           for next-char = (char-after (1+ (point)))
           if (eolp)
