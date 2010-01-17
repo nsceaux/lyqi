@@ -1,7 +1,9 @@
+*.app
 *.elc
 *.pdf
 *~
 /compile-script
+/lilypond-index.html
+/lyqi-help-index.el
 /lyqi.el
 eieio
-*.app

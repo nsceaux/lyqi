@@ -13,6 +13,7 @@
 (require 'lyqi-editing-commands)
 (require 'lyqi-compile-commands)
 (require 'lyqi-completion)
+(require 'lyqi-help)
 
 ;;;
 ;;; Language selection
