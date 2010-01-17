@@ -1,6 +1,10 @@
-EL_SOURCES = header.el lp-base.el lyqi-custom.el lyqi-pitchnames.el \
-             lyqi-syntax.el lyqi-midi.el lyqi-editing-commands.el \
-             lyqi-indent.el lyqi-compile-commands.el lyqi-mode.el
+EL_SOURCES = header.el lp-base.el lyqi-custom.el lyqi-pitchnames.el	\
+             lyqi-words.el lyqi-syntax.el lyqi-midi.el			\
+             lyqi-editing-commands.el lyqi-indent.el			\
+             lyqi-compile-commands.el lyqi-completion.el lyqi-mode.el
+
+lyqi-words.el:
+	lilypond make-words.ly
 
 lyqi.el: $(EL_SOURCES)
 	cat $(EL_SOURCES) | \

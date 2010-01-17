@@ -12,6 +12,7 @@
 (require 'lyqi-midi)
 (require 'lyqi-editing-commands)
 (require 'lyqi-compile-commands)
+(require 'lyqi-completion)
 
 ;;;
 ;;; Language selection
@@ -60,9 +61,9 @@ Otherwise, return NIL."
              (intern (match-string-no-properties 1)))
         (lyqi:file-in-defined-projects-p (buffer-file-name))
         (and (re-search-forward "\\(^\\|[ \t]\\)\\(do\\|re\\|mi\\|fa\\|sol\\|la\\|si\\)[',]*[1248]" nil t)
-             'italiano) ;; TODO: chose first do-re-mi language from `lyqi:prefered-languages'
+             'italiano) ;; TODO: choose first do-re-mi language from `lyqi:prefered-languages'
         (and (re-search-forward "\\(^\\|[ \t]\\)[a-h][',]*[1248]" nil t)
-             'nederlands) ;; TODO: chose first a-b-c language from `lyqi:prefered-languages'
+             'nederlands) ;; TODO: choose first a-b-c language from `lyqi:prefered-languages'
         (first lyqi:prefered-languages))))
 
 (defun lyqi:select-next-language (&optional syntax)
@@ -332,6 +333,9 @@ In quick insertion mode:
   ;; midi backend
   (lyqi:start-midi-backend)
   ;; default mode-map
-  (use-local-map lyqi:normal-mode-map))
+  (use-local-map lyqi:normal-mode-map)
+  ;; auto completion
+  (when lyqi:auto-complete-enabled
+    (lyqi:use-auto-complete)))
 
 (provide 'lyqi-mode)

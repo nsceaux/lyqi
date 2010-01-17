@@ -8,6 +8,13 @@
   :prefix "lyqi:"
   :group 'applications)
 
+(defcustom lyqi:auto-complete-enabled nil
+  "When non-nil, use auto completion with pop-up menu.
+This requires the auto-complete module
+  <http://github.com/m2ym/auto-complete>"
+  :group 'lyqi
+  :type 'boolean)
+
 (defcustom lyqi:prefered-languages '(nederlands italiano)
   "Prefered languages for note names.  The first choice is used
 in new files, or when the language of an existing file cannot be
@@ -92,56 +99,5 @@ files located in other places in \"~/Documents/MyProjects\"."
   "Command used to open .midi files"
   :group 'lyqi
   :type 'string)
-
-;;;
-;;; Faces
-;;;
-
-(defgroup lyqi-faces nil
-  "Faces for LilyPond buffers."
-  :prefix "lyqi:"
-  :group 'lyqi)
-
-(defface lyqi:note-face
-  '((((class color) (background light)) :foreground "SlateBlue")
-    (((class color) (background dark)) :foreground "LightBlue1"))
-  "Face for notes."
-  :group 'lyqi-faces)
-
-(defface lyqi:rest-face
-  '((((class color) (background light)) :foreground "SeaGreen")
-    (((class color) (background dark)) :foreground "DarkSeaGreen1"))
-  "Face for rests and skips."
-  :group 'lyqi-faces)
-
-(defface lyqi:duration-face
-  '((((class color) (background light)) :foreground "VioletRed")
-    (((class color) (background dark)) :foreground "LightPink"))
-  "Face for rests and skips."
-  :group 'lyqi-faces)
-
-(defface lyqi:verbatim-face
-  '((((class color) (background light)))
-    (((class color) (background dark))))
-  "Face for verbatim text."
-  :group 'lyqi-faces)
-
-(defface lyqi:scheme-face
-  '((((class color) (background light)) :foreground "DarkOrange4")
-    (((class color) (background dark)) :foreground "wheat"))
-  "Face for scheme forms."
-  :group 'lyqi-faces)
-
-(defface lyqi:scheme-keyword-face
-  '((((class color) (background light)) :foreground "OrangeRed")
-    (((class color) (background dark)) :foreground "tan"))
-  "Face for scheme keyword forms."
-  :group 'lyqi-faces)
-
-(defface lyqi:delimiter-face
-  '((((class color) (background light)) :foreground "grey40")
-    (((class color) (background dark)) :foreground "grey90"))
-  "Face for delimiters."
-  :group 'lyqi-faces)
 
 (provide 'lyqi-custom)

@@ -120,7 +120,9 @@ See also `lp:form-before-point'."
       (values (first rest-forms) line (rest rest-forms))
       (let* ((prev-line (lp:previous-line line))
              (prev-forms (and prev-line (reverse (lp:line-forms prev-line)))))
-        (values (first prev-forms) prev-line (rest prev-forms)))))
+        (if prev-forms
+            (values (first prev-forms) prev-line (rest prev-forms))
+            (lp:previous-form prev-line)))))
 
 (defun lp:form-before-point (syntax position)
   "Return three values:
@@ -324,6 +326,9 @@ Default values:
                          (set-marker-insertion-type marker nil)
                          marker)
           for (forms next-parser-state) = (lp:parse-line syntax parser-state)
+          do (assert (= marker (point-at-bol))
+                        "lp:parse error: lp:parse-line outreached a line end (%d, %d)"
+                        marker (point-at-bol)) ;; debug
           for line = (make-instance 'lp:line-parse
                                     :marker marker
                                     :previous-line previous-line
@@ -332,7 +337,7 @@ Default values:
           unless first-line do (setf first-line line)
           if previous-line do (set-slot-value previous-line 'next-line line)
           if (>= (point) end-position)
-          ;; end position has been reached: return the result
+          ;; end position has been reached: stop parsing
           return (values first-line line next-parser-state)
           ;; otherwise go to next line
           do (forward-line 1))))
@@ -526,11 +531,11 @@ and fontify the changed text.
                 (lp:link-lines last-new-line
                                (lp:next-line last-modified-line)))
             ;; debug
-            (princ (format "old: [%s-%s] new: [%s-%s]"
-                           (marker-position (lp:marker first-modified-line))
-                           (marker-position (lp:marker last-modified-line))
-                           (marker-position (lp:marker first-new-line))
-                           (marker-position (lp:marker last-new-line))))
+            ;;(princ (format "old: [%s-%s] new: [%s-%s]"
+            ;;               (marker-position (lp:marker first-modified-line))
+            ;;               (marker-position (lp:marker last-modified-line))
+            ;;               (marker-position (lp:marker first-new-line))
+            ;;               (marker-position (lp:marker last-new-line))))
             ;; Update the syntax `current-line', from quick access
             (set-slot-value syntax 'current-line last-new-line)
             (set-slot-value syntax 'first-modified-line nil)

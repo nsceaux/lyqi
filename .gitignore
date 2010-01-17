@@ -1,4 +1,5 @@
 *.elc
+*.pdf
 *~
 /compile-script
 /lyqi.el

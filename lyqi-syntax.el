@@ -8,6 +8,7 @@
 (require 'lp-base)
 (require 'lyqi-pitchnames)
 (require 'lyqi-custom)
+(require 'lyqi-words)
 
 ;;;
 ;;; Lexer states
@@ -144,7 +145,9 @@ and NIL if it is an implicit duration lexeme.")
 (defclass lyqi:scheme-symbol-lexeme (lyqi:scheme-lexeme)
   ((special-args :initarg :special-args
                  :initform nil)))
-(defclass lyqi:scheme-keyword-lexeme (lyqi:scheme-symbol-lexeme) ())
+(defclass lyqi:scheme-macro-lexeme (lyqi:scheme-symbol-lexeme lp:builtin-lexeme) ())
+(defclass lyqi:scheme-function-lexeme (lyqi:scheme-symbol-lexeme lp:function-name-lexeme) ())
+(defclass lyqi:scheme-variable-lexeme (lyqi:scheme-symbol-lexeme lp:variable-name-lexeme) ())
 (defclass lyqi:sharp-lexeme (lyqi:scheme-lexeme) ())
 (defclass lyqi:left-parenthesis-lexeme (lyqi:scheme-lexeme
                                         lp:opening-delimiter-lexeme) ())
@@ -196,27 +199,16 @@ Oterwise, return NIL."
 ;;;
 
 (defmethod lp:fontify ((this lyqi:verbatim-form))
+  nil)
+
+(defmethod lp:face ((this lyqi:music-form))
+  '(face font-lock-constant-face))
+
+(defmethod lp:fontify ((this lyqi:music-form))
   (let* ((start (marker-position (lp:marker this)))
          (end (+ start (lp:size this))))
-    (lp:fontify-region start end '(face lyqi:verbatim-face))))
-
-(defmethod lp:face ((this lyqi:note-lexeme))
-  '(face lyqi:note-face))
-
-(defmethod lp:face ((this lyqi:rest-skip-etc-lexeme))
-  '(face lyqi:rest-face))
-
-(defmethod lp:face ((this lyqi:duration-lexeme))
-  '(face lyqi:duration-face))
-
-(defmethod lp:face ((this lyqi:scheme-lexeme))
-  '(face lyqi:scheme-face))
-
-(defmethod lp:face ((this lyqi:scheme-keyword-lexeme))
-  '(face lyqi:scheme-keyword-face))
-
-(defmethod lp:face ((this lp:delimiter-lexeme))
-  '(face lyqi:delimiter-face))
+    (when (> end start)
+      (lp:fontify-region start end (lp:face this)))))
 
 ;;;
 ;;; Lex functions
@@ -311,14 +303,25 @@ Oterwise, return NIL."
                                                                   :size size))
                               (not (eolp)))))))))
         ;; a backslashed keyword, command or variable
-        ((looking-at "[^_-]?\\\\[a-zA-Z]+")
+        ((looking-at "[^_-]?\\\\\\([a-zA-Z-]+\\)")
          (lyqi:with-forward-match (marker size)
-           (values parser-state
-                   (lyqi:reduce-lexemes parser-state
-                                        (make-instance 'lp:keyword-lexeme
-                                                       :marker marker
-                                                       :size size))
-                   t)))
+           (let ((sym (intern (match-string-no-properties 1))))
+             (values parser-state
+                     (lyqi:reduce-lexemes
+                      parser-state
+                      (make-instance (cond ((memq sym lyqi:lilypond-keywords)
+                                            'lp:builtin-lexeme)
+                                           ((memq sym lyqi:lilypond-music-variables)
+                                            'lp:variable-name-lexeme)
+                                           ((or (memq sym lyqi:lilypond-music-functions)
+                                                (memq sym lyqi:lilypond-markup-commands)
+                                                (memq sym lyqi:lilypond-markup-list-commands))
+                                            'lp:function-name-lexeme)
+                                           (t
+                                            'lp:keyword-lexeme))
+                                     :marker marker
+                                     :size size))
+                     t))))
         ;; other top level expressions are treated as verbatim
         ;; - lex the verbatim word and add the lexeme to the output parse data
         ;; - continue lexing in {toplevel} state
@@ -533,23 +536,29 @@ Oterwise, return NIL."
         (t ;; symbols
          (lyqi:with-forward-match ("[^ \t\r\n()]+" marker size)
            (let* ((symbol-name (match-string-no-properties 0))
-                  (symbol (intern symbol-name)))
-             (destructuring-bind (special-args keyword)
-                 ;; TODO: define a method
-                 (case symbol
-                   ((define-markup-command define-music-function) '(2 t))
-                   ((lambda let define define-public) '(1 t))
-                   ((begin) '(0 t))
-                   ((if cond) '(nil t))
-                   (t '(nil nil)))
-               (values parser-state
-                       (list (make-instance (if keyword
-                                                'lyqi:scheme-keyword-lexeme
-                                                'lyqi:scheme-symbol-lexeme)
+                  (symbol (intern symbol-name))
+                  (special-args (case symbol
+                                  ;; TODO: define a method
+                                  ((define-markup-command define-music-function) '(2 t))
+                                  ((lambda let let* define define-public) '(1 t))
+                                  ((begin) '(0 t))
+                                  ((if cond) '(nil t))
+                                  (t '(nil nil)))))
+             (values parser-state
+                     (list (make-instance (cond ((or (memq symbol lyqi:scheme-guile-macros)
+                                                     (memq symbol lyqi:scheme-lily-macros))
+                                                 'lyqi:scheme-macro-lexeme)
+                                                ((or (memq symbol lyqi:scheme-guile-procedures)
+                                                     (memq symbol lyqi:scheme-lily-procedures))
+                                                 'lyqi:scheme-function-lexeme)
+                                                ((memq symbol lyqi:scheme-lily-variables)
+                                                 'lyqi:scheme-variable-lexeme)
+                                                (t
+                                                 'lyqi:scheme-symbol-lexeme))
                                             :special-args special-args
                                             :marker marker
                                             :size size))
-                       (not (eolp)))))))))
+                       (not (eolp))))))))
 
 (defmethod lp:lex ((parser-state lyqi:embedded-toplevel-parser-state) syntax)
   (lyqi:skip-whitespace)
