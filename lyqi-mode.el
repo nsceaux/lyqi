@@ -89,6 +89,12 @@ Otherwise, return NIL."
 (defvar lyqi:quick-insert-mode-map nil
   "Keymap used in `lyqi-mode', in quick insertion editing.")
 
+(defvar lyqi:quick-insert-string-mode-map nil
+  "Keymap used in `lyqi-mode', when inserting a string in quick insertion editing.")
+
+(defvar lyqi:quick-insert-command-mode-map nil
+  "Keymap used in `lyqi-mode', when inserting a \\command in quick insertion editing.")
+
 (defun lyqi:toggle-quick-edit-mode (&optional syntax)
   (interactive)
   (let* ((syntax (or syntax (lp:current-syntax)))
@@ -98,6 +104,26 @@ Otherwise, return NIL."
         (use-local-map lyqi:quick-insert-mode-map)
         (use-local-map lyqi:normal-mode-map)))
   (force-mode-line-update))
+
+(defun lyqi:enter-quick-insert-string ()
+  (interactive)
+  (lyqi:insert-delimiter)
+  (use-local-map lyqi:quick-insert-string-mode-map))
+
+(defun lyqi:quit-quick-insert-string ()
+  (interactive)
+  (lyqi:insert-delimiter)
+  (use-local-map lyqi:quick-insert-mode-map))
+
+(defun lyqi:enter-quick-insert-command ()
+  (interactive)
+  (insert-char last-command-char 1)
+  (use-local-map lyqi:quick-insert-command-mode-map))
+
+(defun lyqi:quit-quick-insert-command ()
+  (interactive)
+  (insert-char last-command-char 1)
+  (use-local-map lyqi:quick-insert-mode-map))
 
 (defconst lyqi:+azerty-mode-map+
   '(;; Rest, skip, etc
@@ -184,7 +210,13 @@ copying `lyqi:normal-mode-map' and using bindings set in either
 on the value of `lyqi:keyboard-mapping'), and bindings from
 `lyqi:custom-key-map'."
   (interactive)
+  (setq lyqi:quick-insert-string-mode-map (copy-keymap lyqi:normal-mode-map))
+  (define-key lyqi:quick-insert-string-mode-map "\"" 'lyqi:quit-quick-insert-string)
+  (setq lyqi:quick-insert-command-mode-map (copy-keymap lyqi:normal-mode-map))
+  (define-key lyqi:quick-insert-command-mode-map " " 'lyqi:quit-quick-insert-command)
   (setq lyqi:quick-insert-mode-map (copy-keymap lyqi:normal-mode-map))
+  (define-key lyqi:quick-insert-mode-map "\"" 'lyqi:enter-quick-insert-string)
+  (define-key lyqi:quick-insert-mode-map "\\" 'lyqi:enter-quick-insert-command)
   (loop for (key command) in (case lyqi:keyboard-mapping
                                ((azerty) lyqi:+azerty-mode-map+)
                                (t lyqi:+qwerty-mode-map+))
