@@ -54,6 +54,10 @@ duration object has no dot nor numerator nor denominator."
 (defun lyqi:change-duration (syntax duration)
   "Change the duration of the music found at or before point.
 `duration': a number, e.g. 1 2 4 8 16 32 etc"
+  (when (and (not (eolp))
+             (eql (char-after (point)) ?\>)
+             (not (eql (char-after (1+ (point))) ?\>)))
+    (forward-char))
   (multiple-value-bind (current-duration previous-duration)
       (lyqi:find-durations-backward syntax (point))
     (when current-duration
@@ -153,8 +157,9 @@ duration object has no dot nor numerator nor denominator."
 ;;;
 (defun lyqi:maybe-insert-space ()
   (unless (or (bolp)
-              (eql (char-before (point)) ?\ )
-              (eql (char-before (point)) ?\t))
+              (= (char-before (point)) ?\ )
+              (= (char-before (point)) ?\t)
+              (= (char-before (point)) ?\<))
     (insert " ")))
 
 (defun lyqi:insert-rest ()
@@ -209,7 +214,7 @@ searching as soon as a rest, skip, etc is found."
         for note = (lyqi:form-with-note-p form)
         if note return note))
 
-(defun lyqi:insert-note (syntax note)
+(defun lyqi:insert-note (syntax note &optional insert-default-duration)
   (with-slots (pitch alteration octave-modifier accidental) note
     (let ((note-string (lyqi:pitchname (lyqi:language syntax) pitch alteration))
           (octave-string (cond ((= octave-modifier 0)
@@ -222,7 +227,9 @@ searching as soon as a rest, skip, etc is found."
                                ((forced) "!")
                                ((cautionary) "?")
                                (t ""))))
-      (insert (format "%s%s%s" note-string octave-string accidental-string))))
+      (insert (format "%s%s%s%s"
+                      note-string octave-string accidental-string
+                      (if insert-default-duration "4" "")))))
   (lyqi:play-note note))
 
 (defun lyqi:re-insert-note (syntax note)
@@ -233,18 +240,22 @@ searching as soon as a rest, skip, etc is found."
 
 (defun lyqi:insert-note-by-pitch (pitch)
   (let* ((syntax (lp:current-syntax))
-         (previous-note (lyqi:find-note-backward syntax (point))))
-    (with-slots ((pitch0 pitch) (octave0 octave-modifier)) previous-note
-      (let ((new-note (make-instance 'lyqi:note-mixin
-                                     :pitch pitch
-                                     :alteration (aref (slot-value syntax 'alterations)
-                                                       pitch)
-                                     :octave-modifier (cond ((> (- pitch pitch0) 3) (1- octave0))
-                                                            ((> (- pitch0 pitch) 3) (1+ octave0))
-                                                            (t octave0)))))
-        (combine-after-change-calls
-          (lyqi:maybe-insert-space)
-          (lyqi:insert-note syntax new-note))))))
+         (previous-note (lyqi:find-note-backward syntax (point)))
+         (new-note (if previous-note
+                       (with-slots ((pitch0 pitch) (octave0 octave-modifier)) previous-note
+                         (make-instance 'lyqi:note-mixin
+                                        :pitch pitch
+                                        :alteration (aref (slot-value syntax 'alterations)
+                                                          pitch)
+                                        :octave-modifier (cond ((> (- pitch pitch0) 3) (1- octave0))
+                                                               ((> (- pitch0 pitch) 3) (1+ octave0))
+                                                               (t octave0))))
+                       (make-instance 'lyqi:note-mixin
+                                      :pitch pitch
+                                      :alteration (aref (slot-value syntax 'alterations) pitch)))))
+    (combine-after-change-calls
+      (lyqi:maybe-insert-space)
+      (lyqi:insert-note syntax new-note (not previous-note)))))
 
 (defun lyqi:insert-note-c ()
   "Insert a c/do note at point"
@@ -363,5 +374,51 @@ sharp -> neutral -> flat"
   (lyqi:maybe-insert-space)
   (insert "|\n")
   (lyqi:indent-line))
+
+(defun lyqi:insert-opening-delimiter (&optional n)
+  "Insert an opening delimiter and the corresponding closing
+delimiter.  This depends on the current context: in a LilyPond
+block, delimiters are {} and <>,
+whereas in a Scheme block, delimiters are parens."
+  (interactive "p")
+  (multiple-value-bind (form line rest-forms)
+      (lp:form-before-point (lp:current-syntax) (point))
+    (let ((delim last-command-char))
+      (if (and form (object-of-class-p form 'lyqi:scheme-lexeme))
+          ;; scheme context
+          (if (= delim ?\()
+              (progn
+                (insert "()")
+                (backward-char))
+              (insert-char delim n))
+          ;; LilyPond context
+          (let ((closing-delim (cdr (assq delim '((?\< . ?\>) (?\{ . ?\}))))))
+            (if closing-delim
+                (progn
+                  (lyqi:maybe-insert-space)
+                  ;; TODO: account for prefix argument
+                  (insert (format "%c%c" delim closing-delim))
+                  (backward-char))
+                (insert-char delim n)))))))
+
+(defun lyqi:insert-closing-delimiter (&optional n)
+  "Insert a closing delimiter, unless char after point is the same closing delimiter."
+  (interactive "p")
+  (let ((delim last-command-char))
+    (if (and (not (eolp))
+             (= delim (char-after (point))))
+        (forward-char)
+        (insert-char delim n))))
+
+(defun lyqi:insert-delimiter (&optional n)
+  "Insert a delimiter twice, unless char after point is this delimiter."
+  (interactive "p")
+  (let ((delim last-command-char))
+    (if (and (not (eolp))
+             (= delim (char-after (point))))
+        (forward-char)
+        (progn
+          (insert-char delim (* 2 (or n 1)))
+          (backward-char (or n 1))))))
 
 (provide 'lyqi-editing-commands)

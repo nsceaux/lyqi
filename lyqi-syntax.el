@@ -201,6 +201,12 @@ Oterwise, return NIL."
 (defmethod lp:fontify ((this lyqi:verbatim-form))
   nil)
 
+(defmethod lp:face ((this lyqi:note-lexeme))
+  '(face font-lock-constant-face))
+
+(defmethod lp:face ((this lyqi:chord-start-lexeme))
+  '(face font-lock-constant-face))
+
 (defmethod lp:face ((this lyqi:music-form))
   '(face font-lock-constant-face))
 
@@ -303,7 +309,7 @@ Oterwise, return NIL."
                                                                   :size size))
                               (not (eolp)))))))))
         ;; a backslashed keyword, command or variable
-        ((looking-at "[^_-]?\\\\\\([a-zA-Z-]+\\)")
+        ((looking-at "[_^-]?\\\\\\([a-zA-Z-]+\\)")
          (lyqi:with-forward-match (marker size)
            (let ((sym (intern (match-string-no-properties 1))))
              (values parser-state

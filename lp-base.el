@@ -118,11 +118,12 @@ Return three values:
 See also `lp:form-before-point'."
   (if rest-forms
       (values (first rest-forms) line (rest rest-forms))
-      (let* ((prev-line (lp:previous-line line))
-             (prev-forms (and prev-line (reverse (lp:line-forms prev-line)))))
-        (if prev-forms
-            (values (first prev-forms) prev-line (rest prev-forms))
-            (lp:previous-form prev-line)))))
+      (when line
+        (let* ((prev-line (lp:previous-line line))
+               (prev-forms (and prev-line (reverse (lp:line-forms prev-line)))))
+          (if prev-forms
+              (values (first prev-forms) prev-line (rest prev-forms))
+              (lp:previous-form prev-line))))))
 
 (defun lp:form-before-point (syntax position)
   "Return three values:

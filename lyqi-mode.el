@@ -201,6 +201,13 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
   (define-key lyqi:normal-mode-map "\C-c\C-l" 'lyqi:compile-ly)
   (define-key lyqi:normal-mode-map "\C-c\C-s" 'lyqi:open-pdf)
   (define-key lyqi:normal-mode-map [(control c) return] 'lyqi:open-midi)
+  (define-key lyqi:normal-mode-map "(" 'lyqi:insert-opening-delimiter)
+  (define-key lyqi:normal-mode-map "{" 'lyqi:insert-opening-delimiter)
+  (define-key lyqi:normal-mode-map "<" 'lyqi:insert-opening-delimiter)
+  (define-key lyqi:normal-mode-map "\"" 'lyqi:insert-delimiter)
+  (define-key lyqi:normal-mode-map ")" 'lyqi:insert-closing-delimiter)
+  (define-key lyqi:normal-mode-map "}" 'lyqi:insert-closing-delimiter)
+  (define-key lyqi:normal-mode-map ">" 'lyqi:insert-closing-delimiter)
   (lyqi:force-mode-map-definition))
 
 ;;;
@@ -213,7 +220,6 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
   (save-selected-window
     (select-window (posn-window (event-start event)))
     (lyqi:select-next-language)))
-
 
 (defun lyqi:mode-line-toggle-quick-edit-mode (event)
   "Like `lyqi:toggle-quick-edit-mode', but temporarily select EVENT's window."
