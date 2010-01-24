@@ -1,62 +1,83 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
-;;; auto completion
+;;; Completion
 ;;;
+(require 'lyqi-words)
+(defvar lyqi:backslashed-words
+  (sort (mapcar 'symbol-name (append lyqi:lilypond-keywords
+                                     lyqi:lilypond-music-variables
+                                     lyqi:lilypond-music-functions
+                                     lyqi:lilypond-markup-commands
+                                     lyqi:lilypond-markup-list-commands))
+        'string-lessp))
 
-(defmacro lyqi:define-completion-source (name category tip)
-  (let* ((name (symbol-name name))
-         (words-sym (intern (format "lyqi:%s" name)))
-         (words-cache-sym (intern (format "lyqi:ac-%s" name)))
-         (words-source-sym (intern (format "lyqi:ac-source-%s" name))))
-    `(progn
-       (defvar ,words-cache-sym nil
-         ,(format "Auto completion: cache for %s words" tip))
-       (defvar ,words-source-sym
-         '((init . (or ,words-cache-sym
-                       (setq ,words-cache-sym
-                             (mapcar 'symbol-name ,words-sym))))
-           (candidates . ,words-cache-sym)
-           (symbol . ,(format "[%s]" tip))
-           (prefix . ,(case category
-                        ((lilypond-keyword) "\\\\\\(\\(?:\\sw\\|\\s_\\)*\\)")
-                        ((scheme-function) "[#(]\\(\\(?:\\sw\\|\\s_\\)+\\)")
-                        ((scheme-variable) "#\\(\\(?:\\sw\\|\\s_\\)+\\)")
-                        (t nil)))
-           (cache))))))
+(defvar lyqi:scheme-words
+  (sort (mapcar 'symbol-name (append lyqi:scheme-lily-procedures
+                                     lyqi:scheme-lily-variables
+                                     lyqi:scheme-lily-macros
+                                     lyqi:scheme-guile-procedures
+                                     lyqi:scheme-guile-macros))
+        'string-lessp))
 
-(defun lyqi:set-ac-sources (categories)
-  (setq ac-sources
-        (mapcar (lambda (sym)
-                  (intern (format "lyqi:ac-source-%s" (symbol-name sym))))
-                categories)))
+(defclass lyqi:abbrev ()
+  ((abbrev :initarg :abbrev)
+   (collection :initarg :collection)
+   (start-position :initarg :start-position)))
 
-(lyqi:define-completion-source lilypond-keywords lilypond-keyword "keyword")
-(lyqi:define-completion-source lilypond-music-variables lilypond-keyword "variable")
-(lyqi:define-completion-source lilypond-music-functions lilypond-keyword "function")
-(lyqi:define-completion-source lilypond-markup-commands lilypond-keyword "markup")
-(lyqi:define-completion-source lilypond-markup-list-commands lilypond-keyword "markup-list")
-(lyqi:define-completion-source scheme-lily-procedures scheme-function "function")
-(lyqi:define-completion-source scheme-lily-macros scheme-function "macro")
-(lyqi:define-completion-source scheme-lily-variables scheme-variable "variable")
-(lyqi:define-completion-source scheme-guile-procedures scheme-function "function")
-(lyqi:define-completion-source scheme-guile-macros scheme-function "macro")
+(defgeneric lyqi:form-abbrev (form)
+  "Return the completion data of form, or NIL is form cannot be completed.")
 
-(defun lyqi:use-auto-complete ()
-  (require 'auto-complete)
-  (require 'lyqi-words)
-  (lyqi:set-ac-sources '(lilypond-keywords
-                         lilypond-music-variables
-                         lilypond-music-functions
-                         lilypond-markup-commands
-                         lilypond-markup-list-commands
-                         scheme-lily-procedures
-                         scheme-lily-macros
-                         scheme-lily-variables
-                         scheme-guile-procedures
-                         scheme-guile-macros))
-  (setq ac-auto-start nil)
-  (setq ac-dwim nil)
-  (ac-set-trigger-key "TAB")
-  (auto-complete-mode t))
+(defmethod lyqi:form-abbrev ((this lp:parser-symbol))
+  nil)
+
+(defmethod lyqi:form-abbrev ((this lyqi:backslashed-lexeme))
+  (multiple-value-bind (start abbrev)
+      (let ((string (lp:string this)))
+        (string-match ".*\\\\\\(.*\\)" string)
+        (values (+ (match-beginning 1) (lp:marker this))
+                (match-string 1 string)))
+    (make-instance 'lyqi:abbrev
+                   :abbrev abbrev
+                   :collection lyqi:backslashed-words
+                   :start-position start)))
+
+(defmethod lyqi:form-abbrev ((this lyqi:scheme-symbol-lexeme))
+  (make-instance 'lyqi:abbrev
+                 :abbrev (lp:string this)
+                 :collection lyqi:scheme-words
+                 :start-position (lp:marker this)))
+
+(defmethod lyqi:complete-abbrev ((this lyqi:abbrev))
+  (let* ((abbrev (slot-value this 'abbrev))
+         (collection (slot-value this 'collection))
+         (completion (try-completion abbrev collection)))
+    (cond ((not completion) ;; no completion
+           nil)
+          ((eql completion t) ;; already complete
+           nil)
+          ((string-equal abbrev completion) ;; propose completions
+           (save-excursion
+             (with-output-to-temp-buffer "*Completions*"
+               (display-completion-list (all-completions abbrev collection) abbrev)))
+           t)
+          (t ;; expand abbrev
+           (choose-completion-string completion
+                                     (current-buffer)
+                                     (1- (slot-value this 'start-position)))
+           t))))
+
+(defun lyqi:complete-word ()
+  (interactive)
+  (multiple-value-bind (form line rest-forms)
+      (lp:form-before-point (lp:current-syntax) (point))
+    (when (and form (= (point) (+ (lp:marker form) (lp:size form))))
+      (let ((abbrev (lyqi:form-abbrev form)))
+        (when abbrev
+          (lyqi:complete-abbrev abbrev))))))
+
+(defun lyqi:complete-or-indent ()
+  (interactive)
+  (or (lyqi:complete-word)
+      (lyqi:indent-line)))
 
 (provide 'lyqi-completion)

@@ -109,27 +109,28 @@
 (defclass lyqi:space-lexeme (lyqi:rest-skip-etc-lexeme) ())
 (defclass lyqi:skip-lexeme (lyqi:rest-skip-etc-lexeme) ())
 (defclass lyqi:chord-repetition-lexeme (lyqi:rest-skip-etc-lexeme) ())
+(defclass lyqi:chord-start-lexeme (lp:lexeme) ())
+(defclass lyqi:chord-end-lexeme (lp:lexeme) ())
+(defclass lyqi:base-duration-lexeme (lp:lexeme) ())
+(defclass lyqi:duration-lexeme (lyqi:base-duration-lexeme lyqi:duration-mixin) ())
+(defclass lyqi:no-duration-lexeme (lyqi:base-duration-lexeme) ())
 
 (defclass lyqi:simultaneous-start-lexeme (lp:opening-delimiter-lexeme) ())
 (defclass lyqi:simultaneous-end-lexeme (lp:closing-delimiter-lexeme) ())
 (defclass lyqi:sequential-start-lexeme (lp:opening-delimiter-lexeme) ())
 (defclass lyqi:sequential-end-lexeme (lp:closing-delimiter-lexeme) ())
 
-(defclass lyqi:ornementation-lexeme (lyqi:verbatim-lexeme) ())
-
-(defclass lyqi:chord-start-lexeme (lp:lexeme) ())
-(defclass lyqi:chord-end-lexeme (lp:lexeme) ())
+(defclass lyqi:backslashed-lexeme (lp:lexeme) ())
+(defclass lyqi:keyword-lexeme (lp:builtin-lexeme lyqi:backslashed-lexeme) ())
+(defclass lyqi:variable-lexeme (lp:variable-name-lexeme lyqi:backslashed-lexeme) ())
+(defclass lyqi:function-lexeme (lp:function-name-lexeme lyqi:backslashed-lexeme) ())
+(defclass lyqi:user-command-lexeme (lp:keyword-lexeme lyqi:backslashed-lexeme) ())
 
 (defclass lyqi:string-lexeme (lp:string-lexeme) ())
 
 (defclass lyqi:one-line-comment-lexeme (lp:comment-lexeme)
   ((level :initarg :level)))
 (defclass lyqi:multi-line-comment-lexeme (lp:comment-lexeme) ())
-
-(defclass lyqi:base-duration-lexeme (lp:lexeme) ())
-(defclass lyqi:duration-lexeme (lyqi:base-duration-lexeme lyqi:duration-mixin) ())
-  
-(defclass lyqi:no-duration-lexeme (lyqi:base-duration-lexeme) ())
 
 (defgeneric lyqi:explicit-duration-p (duration)
   "Return T iff `duration' is an explicit duration lexeme,
@@ -316,15 +317,15 @@ Oterwise, return NIL."
                      (lyqi:reduce-lexemes
                       parser-state
                       (make-instance (cond ((memq sym lyqi:lilypond-keywords)
-                                            'lp:builtin-lexeme)
+                                            'lyqi:keyword-lexeme)
                                            ((memq sym lyqi:lilypond-music-variables)
-                                            'lp:variable-name-lexeme)
+                                            'lyqi:variable-lexeme)
                                            ((or (memq sym lyqi:lilypond-music-functions)
                                                 (memq sym lyqi:lilypond-markup-commands)
                                                 (memq sym lyqi:lilypond-markup-list-commands))
-                                            'lp:function-name-lexeme)
+                                            'lyqi:function-lexeme)
                                            (t
-                                            'lp:keyword-lexeme))
+                                            'lyqi:user-command-lexeme))
                                      :marker marker
                                      :size size))
                      t))))

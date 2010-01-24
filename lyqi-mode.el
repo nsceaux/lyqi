@@ -240,6 +240,7 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
   (define-key lyqi:normal-mode-map ")" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map "}" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map ">" 'lyqi:insert-closing-delimiter)
+  (define-key lyqi:normal-mode-map [tab] 'lyqi:complete-or-indent)
   (lyqi:force-mode-map-definition))
 
 ;;;
@@ -372,9 +373,6 @@ In quick insertion mode:
   ;; midi backend
   (lyqi:start-midi-backend)
   ;; default mode-map
-  (use-local-map lyqi:normal-mode-map)
-  ;; auto completion
-  (when lyqi:auto-complete-enabled
-    (lyqi:use-auto-complete)))
+  (use-local-map lyqi:normal-mode-map))
 
 (provide 'lyqi-mode)

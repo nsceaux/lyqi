@@ -8,13 +8,6 @@
   :prefix "lyqi:"
   :group 'applications)
 
-(defcustom lyqi:auto-complete-enabled nil
-  "When non-nil, use auto completion with pop-up menu.
-This requires the auto-complete module
-  <http://github.com/m2ym/auto-complete>"
-  :group 'lyqi
-  :type 'boolean)
-
 (defcustom lyqi:prefered-languages '(nederlands italiano)
   "Prefered languages for note names.  The first choice is used
 in new files, or when the language of an existing file cannot be
