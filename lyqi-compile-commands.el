@@ -53,7 +53,7 @@
 
 (defun lyqi:compile-command (command ext)
   (when (lyqi:master-file)
-    (let* ((pathname (lyqi:master-file))
+    (let* ((pathname (file-truename (lyqi:master-file)))
            (directory (file-name-directory pathname))
            (basename (file-name-sans-extension (file-name-nondirectory pathname)))
            (command (format "cd %s; %s %s.%s"
