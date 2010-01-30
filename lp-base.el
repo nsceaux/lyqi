@@ -514,7 +514,9 @@ and fontify the changed text.
           ;; re-parse the modified lines
           (multiple-value-bind (first-new-line last-new-line next-state)
               (lp:parse syntax
-                        (slot-value first-modified-line 'parser-state)
+                        (if first-modified-line
+                            (slot-value first-modified-line 'parser-state)
+                            (slot-value syntax 'default-parser-state))
                         end-position)
             ;; fontify new lines
             (loop for line = first-new-line then (lp:next-line line)
@@ -523,11 +525,13 @@ and fontify the changed text.
                   do (lp:fontify line))
             ;; replace the old lines with the new ones in the
             ;; double-linked list
-            (if (eql (lp:first-line syntax) first-modified-line)
+            (if (or (not first-modified-line)
+                    (eql (lp:first-line syntax) first-modified-line))
                 (set-slot-value syntax 'first-line first-new-line)
                 (lp:link-lines (lp:previous-line first-modified-line)
                                first-new-line))
-            (if (eql (lp:last-line syntax) last-modified-line)
+            (if (or (not last-modified-line)
+                    (eql (lp:last-line syntax) last-modified-line))
                 (set-slot-value syntax 'last-line last-new-line)
                 (lp:link-lines last-new-line
                                (lp:next-line last-modified-line)))
