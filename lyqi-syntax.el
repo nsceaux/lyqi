@@ -588,7 +588,7 @@ Oterwise, return NIL."
     (lp:forward-match)))
 
 (defun lyqi:lex-verbatim (syntax &optional verbatim-regex)
-  (lyqi:with-forward-match ((or verbatim-regex "[^ \t\r\n\"<>{}]+") marker size)
+  (lyqi:with-forward-match ((or verbatim-regex "[^ \t\r\n\"<>{}\\]+") marker size)
     (make-instance 'lyqi:verbatim-lexeme
                    :marker marker
                    :size size)))

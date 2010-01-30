@@ -214,7 +214,7 @@ searching as soon as a rest, skip, etc is found."
         for note = (lyqi:form-with-note-p form)
         if note return note))
 
-(defun lyqi:insert-note (syntax note &optional insert-default-duration)
+(defun lyqi:insert-note (syntax note play-note &optional insert-default-duration)
   (with-slots (pitch alteration octave-modifier accidental) note
     (let ((note-string (lyqi:pitchname (lyqi:language syntax) pitch alteration))
           (octave-string (cond ((= octave-modifier 0)
@@ -230,13 +230,14 @@ searching as soon as a rest, skip, etc is found."
       (insert (format "%s%s%s%s"
                       note-string octave-string accidental-string
                       (if insert-default-duration "4" "")))))
-  (lyqi:play-note note))
+  (when play-note
+    (lyqi:play-note note)))
 
-(defun lyqi:re-insert-note (syntax note)
+(defun lyqi:re-insert-note (syntax note play-note)
   (goto-char (lp:marker note))
   (combine-after-change-calls
     (delete-char (lp:size note))
-    (lyqi:insert-note syntax note)))
+    (lyqi:insert-note syntax note play-note)))
 
 (defun lyqi:insert-note-by-pitch (pitch)
   (let* ((syntax (lp:current-syntax))
@@ -255,7 +256,7 @@ searching as soon as a rest, skip, etc is found."
                                       :alteration (aref (slot-value syntax 'alterations) pitch)))))
     (combine-after-change-calls
       (lyqi:maybe-insert-space)
-      (lyqi:insert-note syntax new-note (not previous-note)))))
+      (lyqi:insert-note syntax new-note t (not previous-note)))))
 
 (defun lyqi:insert-note-c ()
   "Insert a c/do note at point"
@@ -316,7 +317,7 @@ searching as soon as a rest, skip, etc is found."
             (aset (slot-value syntax 'alterations) pitch new-alteration)
             ;; delete old note, and insert new one
             (lyqi:save-excursion-unless-farther
-              (lyqi:re-insert-note syntax note))))))))
+              (lyqi:re-insert-note syntax note t))))))))
 
 (defun lyqi:change-alteration-up ()
   "Increase the alteration of the note found at or before point:
@@ -347,7 +348,7 @@ sharp -> neutral -> flat"
             (set-slot-value note 'octave-modifier new-octave)
             ;; delete old note, and insert new one
             (lyqi:save-excursion-unless-farther
-              (lyqi:re-insert-note syntax note))))))))
+              (lyqi:re-insert-note syntax note t))))))))
 
 (defun lyqi:change-octave-up ()
   "Increase the octave of the note found at or before point"
@@ -365,15 +366,80 @@ sharp -> neutral -> flat"
   (lyqi:change-octave 0))
 
 ;;;
+;;; Transposition
+;;;
+
+(defun lyqi:transpose-note (note syntax note-diff alteration-diff)
+  "Transpose `note'. Ex: (lyqi:transpose-note [do] -5 -2) -> [mib,]"
+  (with-slots (pitch octave-modifier alteration) note
+    (let* ((scale-up   [0 2 4 5 7 9 11])
+           (scale-down [0 2 3 5 7 8 10])
+           (new-pitch (mod (+ pitch note-diff) 7))
+           (new-octave (+ octave-modifier
+                          (cond ((< (+ pitch note-diff) 0)
+                                 (/ (+ pitch note-diff -6) 7))
+                                ((> (+ pitch note-diff) 6)
+                                 (/ (+ pitch note-diff) 7))
+                                (t 0))))
+           (half-tones-from-C )
+           (half-tones-from-pitch )
+           (new-alteration (+ alteration
+                              alteration-diff
+                              (* 2 (- (aref (if (minusp note-diff)
+                                                scale-down
+                                                scale-up)
+                                            (mod note-diff 7))
+                                      (mod (- (aref scale-up new-pitch)
+                                              (aref scale-up pitch))
+                                           12))))))
+      (set-slot-value note 'pitch new-pitch)
+      (set-slot-value note 'alteration new-alteration)
+      (set-slot-value note 'octave-modifier new-octave)))
+  (lyqi:re-insert-note syntax note nil))
+
+(defun lyqi:transpose-region (interval)
+  "Transpose current region by `interval', a number possibly followed by `+' or `-'.
+For instance:
+  \"3\"  transpose a \"do\" to a \"mi\"
+  \"3-\" transpose a \"do\" to a \"mib\"
+  \"4+\" transpose a \"do\" to a \"fad\"
+  \"-3\" transpose a \"do\" to a \"lad,\"
+"
+  (interactive "sTranspose by interval (interval[+-]): ")
+  (let* ((num (string-to-number interval))
+         (adj (substring interval -1)))
+    (save-excursion
+      (loop with syntax = (lp:current-syntax)
+            with note-diff = (cond ((< num 0) (1+ num))
+                                   ((> num 0) (1- num))
+                                   (t num))
+            with alteration-diff = (cond ((equal adj "+") 2)
+                                         ((equal adj "-") -2)
+                                         (t 0))
+            with beginning = (region-beginning)
+            for (form current-line rest-forms) = (lp:form-before-point syntax (region-end))
+            then (lp:previous-form current-line rest-forms)
+            while (and form (>= (lp:marker form) beginning))
+            if (lyqi:note-lexeme-p form)
+            do (lyqi:transpose-note form syntax note-diff alteration-diff)
+            if (lyqi:simple-note-form-p form)
+            do (loop for lexeme in (slot-value form 'children)
+                     if (lyqi:note-lexeme-p lexeme)
+                     do (lyqi:transpose-note lexeme syntax note-diff alteration-diff))))))
+
+;;;
 ;;; misc editing commands
 ;;;
 
 (defun lyqi:insert-pipe-and-return ()
   "Insert a bar check, a line feed, and indent the line"
   (interactive)
-  (lyqi:maybe-insert-space)
-  (insert "|\n")
-  (lyqi:indent-line))
+  (if (or (bolp) (= (char-before) ?\|))
+      (insert "\n")
+      (progn
+        (lyqi:maybe-insert-space)
+        (insert "|\n")
+        (lyqi:indent-line))))
 
 (defun lyqi:insert-opening-delimiter (&optional n)
   "Insert an opening delimiter and the corresponding closing

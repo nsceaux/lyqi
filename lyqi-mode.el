@@ -128,7 +128,7 @@ Otherwise, return NIL."
 (defconst lyqi:+azerty-mode-map+
   '(;; Rest, skip, etc
     ("v" lyqi:insert-rest)
-    ("b" lyqi:insert-mm-rest)
+    ("b" lyqi:insert-spacer)
     ("q" lyqi:insert-chord-repetition)
     ;; also available: lyqi:insert-spacer lyqi:insert-skip
     ;; Pitches
@@ -162,7 +162,7 @@ Otherwise, return NIL."
 (defconst lyqi:+qwerty-mode-map+
   '(;; Rest, skip, etc
     ("v" lyqi:insert-rest)
-    ("b" lyqi:insert-mm-rest)
+    ("b" lyqi:insert-spacer)
     ("q" lyqi:insert-chord-repetition)
     ;; also available: lyqi:insert-spacer lyqi:insert-skip
     ;; Pitches
@@ -230,6 +230,7 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
 (eval-when (load)
   (setq lyqi:normal-mode-map (make-sparse-keymap))
   (define-key lyqi:normal-mode-map "\C-cq" 'lyqi:toggle-quick-edit-mode)
+  (define-key lyqi:normal-mode-map "\C-c\C-t" 'lyqi:transpose-region)
   (define-key lyqi:normal-mode-map "\C-c\C-l" 'lyqi:compile-ly)
   (define-key lyqi:normal-mode-map "\C-c\C-s" 'lyqi:open-pdf)
   (define-key lyqi:normal-mode-map [(control c) return] 'lyqi:open-midi)
