@@ -100,11 +100,14 @@ indented."
                (arg-forms (rest sexp-forms))
                (special-args (and operator-form
                                   (slot-value operator-form 'special-args)))
-               (next-arg-is-special (and special-args
-                                         (> (- special-args (length arg-forms)) 0))))
+               (is-special (second special-args))
+               (nb-special (first special-args))
+               (next-arg-is-special (and is-special
+                                         (or (eql nb-special t)
+                                             (> (- nb-special (length arg-forms)) 0)))))
           (cond (next-arg-is-special
                  (+ (lyqi:offset-from-bol sexp-paren) (* 2 lyqi:indent-level)))
-                (special-args
+                (is-special
                  (+ (lyqi:offset-from-bol sexp-paren) lyqi:indent-level))
                 (arg-forms
                  (lyqi:offset-from-bol (first arg-forms)))

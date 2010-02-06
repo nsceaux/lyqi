@@ -8,6 +8,9 @@
 (require 'lyqi-pitchnames)
 (require 'lyqi-syntax)
 (require 'lyqi-midi)
+(require 'lyqi-indent)
+
+(defvar lyqi:*alterations* (make-vector 7 0))
 
 (defmacro lyqi:save-excursion-unless-farther (&rest body)
   (let ((final-position (gensym "final-position"))
@@ -162,40 +165,55 @@ duration object has no dot nor numerator nor denominator."
               (= (char-before (point)) ?\<))
     (insert " ")))
 
+(defun lyqi:maybe-insert-space-after ()
+  (unless (or (eolp)
+              (member (char-after)
+                      '(?\- ?\_ ?\^ ?\( ?\) ?\[ ?\] ?\\ ?\1 ?\2 ?\4 ?\8 ?\3 ?\6 ?\> ?\ )))
+    (insert " ")))
+
+(defmacro lyqi:with-space-around (&rest body)
+  `(progn
+     (lyqi:maybe-insert-space)
+     (prog1
+         (progn
+           ,@body)
+       (lyqi:maybe-insert-space-after))))
+(put 'lyqi:with-space-around 'lisp-indent-function 1)
+
 (defun lyqi:insert-rest ()
   "Insert a rest at point"
   (interactive)
   (combine-after-change-calls
-    (lyqi:maybe-insert-space)
-    (insert "r")))
+    (lyqi:with-space-around
+     (insert "r"))))
 
 (defun lyqi:insert-mm-rest ()
   "Insert a rest at point"
   (interactive)
   (combine-after-change-calls
-    (lyqi:maybe-insert-space)
-    (insert "R")))
+    (lyqi:with-space-around
+     (insert "R"))))
 
 (defun lyqi:insert-spacer ()
   "Insert a skip at point"
   (interactive)
   (combine-after-change-calls
-    (lyqi:maybe-insert-space)
-    (insert "s")))
+    (lyqi:with-space-around
+     (insert "s"))))
 
 (defun lyqi:insert-chord-repetition ()
   "Insert a chord repetition at point"
   (interactive)
   (combine-after-change-calls
-    (lyqi:maybe-insert-space)
-    (insert "q")))
+    (lyqi:with-space-around
+     (insert "q"))))
 
 (defun lyqi:insert-skip ()
   "Insert a \\skip ar point"
   (interactive)
   (combine-after-change-calls
-    (lyqi:maybe-insert-space)
-    (insert "\\skip 4"))) ;; TODO: use previous duration?
+    (lyqi:with-space-around
+     (insert "\\skip 4")))) ;; TODO: use previous duration?
 
 ;;;
 ;;; Commands on notes
@@ -246,17 +264,16 @@ searching as soon as a rest, skip, etc is found."
                        (with-slots ((pitch0 pitch) (octave0 octave-modifier)) previous-note
                          (make-instance 'lyqi:note-mixin
                                         :pitch pitch
-                                        :alteration (aref (slot-value syntax 'alterations)
-                                                          pitch)
+                                        :alteration (aref lyqi:*alterations* pitch)
                                         :octave-modifier (cond ((> (- pitch pitch0) 3) (1- octave0))
                                                                ((> (- pitch0 pitch) 3) (1+ octave0))
                                                                (t octave0))))
                        (make-instance 'lyqi:note-mixin
                                       :pitch pitch
-                                      :alteration (aref (slot-value syntax 'alterations) pitch)))))
+                                      :alteration (aref lyqi:*alterations* pitch)))))
     (combine-after-change-calls
-      (lyqi:maybe-insert-space)
-      (lyqi:insert-note syntax new-note t (not previous-note)))))
+      (lyqi:with-space-around
+       (lyqi:insert-note syntax new-note t (not previous-note))))))
 
 (defun lyqi:insert-note-c ()
   "Insert a c/do note at point"
@@ -314,7 +331,7 @@ searching as soon as a rest, skip, etc is found."
           (when (/= alteration new-alteration)
             (set-slot-value note 'alteration new-alteration)
             ;; memorize alteration
-            (aset (slot-value syntax 'alterations) pitch new-alteration)
+            (aset lyqi:*alterations* pitch new-alteration)
             ;; delete old note, and insert new one
             (lyqi:save-excursion-unless-farther
               (lyqi:re-insert-note syntax note t))))))))

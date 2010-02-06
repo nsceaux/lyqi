@@ -328,8 +328,9 @@ Default values:
                          marker)
           for (forms next-parser-state) = (lp:parse-line syntax parser-state)
           do (assert (= marker (point-at-bol))
-                        "lp:parse error: lp:parse-line outreached a line end (%d, %d)"
-                        marker (point-at-bol)) ;; debug
+                     nil
+                     "lp:parse error: lp:parse-line outreached a line end (%d, %d)"
+                     (marker-position marker) (point-at-bol)) ;; debug
           for line = (make-instance 'lp:line-parse
                                     :marker marker
                                     :previous-line previous-line
@@ -500,7 +501,7 @@ from `beginning' to `end'.  Set the `first-modified-line' and
 and fontify the changed text.
 
   `beginning' is the beginning of the changed text.
-  `end' is the end of the changed text.
+  `end' is the end of the changed text.q
   `length' is the length the pre-changed text."
   (let ((syntax (lp:current-syntax)))
     (save-excursion

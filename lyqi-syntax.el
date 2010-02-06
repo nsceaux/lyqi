@@ -63,15 +63,13 @@
   ((language              :initarg :language
                           :accessor lyqi:language)
    (possible-languages)
-   (quick-edit-mode       :initform nil)
-   (alterations)))
+   (quick-edit-mode       :initform nil)))
 
 (defmethod initialize-instance :AFTER ((this lyqi:lilypond-syntax) &optional fields)
   (set-slot-value this 'possible-languages
                   (copy-list lyqi:prefered-languages))
   (set-slot-value this 'default-parser-state
-                  (make-instance 'lyqi:toplevel-parser-state))
-  (set-slot-value this 'alterations (make-vector 7 0)))
+                  (make-instance 'lyqi:toplevel-parser-state)))
 
 ;;;
 ;;; Music type mixins
@@ -549,7 +547,6 @@ Oterwise, return NIL."
                                   ((define-markup-command define-music-function) '(2 t))
                                   ((lambda let let* define define-public) '(1 t))
                                   ((begin) '(0 t))
-                                  ((if cond) '(nil t))
                                   (t '(nil nil)))))
              (values parser-state
                      (list (make-instance (cond ((or (memq symbol lyqi:scheme-guile-macros)
@@ -588,7 +585,7 @@ Oterwise, return NIL."
     (lp:forward-match)))
 
 (defun lyqi:lex-verbatim (syntax &optional verbatim-regex)
-  (lyqi:with-forward-match ((or verbatim-regex "[^ \t\r\n\"<>{}\\]+") marker size)
+  (lyqi:with-forward-match ((or verbatim-regex ".[^ \t\r\n\"<>{}\\]*") marker size)
     (make-instance 'lyqi:verbatim-lexeme
                    :marker marker
                    :size size)))

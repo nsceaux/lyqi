@@ -337,6 +337,9 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
 ;;; lyqi-mode
 ;;;
 
+(defvar lyqi-mode-syntax-table nil
+  "Syntax table used in `lyqi-mode' buffers.")
+
 (defun lyqi-mode ()
   "Major mode for editing LilyPond music files, with quick insertion.
 
@@ -349,6 +352,15 @@ In quick insertion mode:
   (kill-all-local-variables)
   (setq major-mode 'lyqi-mode)
   (setq mode-name "Lyqi")
+  ;; syntax table
+  (make-local-variable 'lyqi-mode-syntax-table)
+  (setq lyqi-mode-syntax-table (make-syntax-table (standard-syntax-table)))
+  (modify-syntax-entry ?\' "w" lyqi-mode-syntax-table)
+  (modify-syntax-entry ?\, "w" lyqi-mode-syntax-table)
+  (modify-syntax-entry ?\. "w" lyqi-mode-syntax-table)
+  (modify-syntax-entry ?\* "w" lyqi-mode-syntax-table)
+  (modify-syntax-entry ?\/ "w" lyqi-mode-syntax-table)
+  (set-syntax-table lyqi-mode-syntax-table)
   ;; indentation
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'lyqi:indent-line)
@@ -368,6 +380,8 @@ In quick insertion mode:
                            :language (lyqi:select-language lang)))
       (pushnew lang (slot-value lp:*current-syntax* 'possible-languages))))
   (lp:parse-and-highlight-buffer)
+  ;; buffer master file
+  (make-local-variable 'lyqi:buffer-master-file)
   ;; mode line modes
   (make-local-variable 'mode-line-modes)
   (lyqi:set-mode-line-modes)
