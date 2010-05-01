@@ -323,9 +323,7 @@ Default values:
           with first-line = nil
           for previous-line = nil then line
           for parser-state = first-parser-state then next-parser-state
-          for marker = (let ((marker (point-marker)))
-                         (set-marker-insertion-type marker nil)
-                         marker)
+          for marker = (point-marker)
           for (forms next-parser-state) = (lp:parse-line syntax parser-state)
           do (assert (= marker (point-at-bol))
                      nil
@@ -501,11 +499,12 @@ from `beginning' to `end'.  Set the `first-modified-line' and
 and fontify the changed text.
 
   `beginning' is the beginning of the changed text.
-  `end' is the end of the changed text.q
+  `end' is the end of the changed text.
   `length' is the length the pre-changed text."
-  (let ((syntax (lp:current-syntax)))
+  (save-match-data
     (save-excursion
-      (let ((end-position (progn
+      (let ((syntax (lp:current-syntax))
+            (end-position (progn
                             (goto-char end)
                             (point-at-eol))))
         (goto-char beginning)
