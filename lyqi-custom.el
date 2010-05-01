@@ -34,24 +34,29 @@ keystrokes, e.g:
    \"\\C-ca\" for C-c a
    [enter] for RET
 
-Values can be either an existing command, or a string, in which
-case a command which inserts the given string will be implicitely
-created.
+Values can be either:
+- an existing command;
+- a string, in which case a command which inserts the given string
+will be implicitely created;
+- a cons, which car is space-around and cdr is the string to be
+inserted.
 
 For example, if `lyqi:custom-key-map' is set to:
 
   '((\"w\" \"\\prall\")
-    (\"x\" \"\\appoggiatura\"))
+    (\"x\" '(space-around . \"\\appoggiatura\")))
 
 then when pressing the key \"w\" in quick insert mode, \\prall
-is inserted, and when pressing \"x\", \\appoggiatura is inserted.
+is inserted, and when pressing \"x\", \\appoggiatura is inserted with
+space around it (unless at the beginning or end of a line).
 
 This variable is normally read when `lyqi-mode' is loaded.  To
 force the redefinition of `lyqi:quick-insert-mode-map', invoke
 command `lyqi:force-mode-map-definition'.
 "
   :group 'lyqi
-  :type '(alist :key-type (choice string vector) :value-type (choice function string)))
+  :type '(alist :key-type (choice string vector)
+                :value-type (choice function string alist)))
 
 (defcustom lyqi:projects-language nil
   "Specify which note language use for projects in given directories.

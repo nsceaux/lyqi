@@ -13,8 +13,7 @@
 where `token' is placed, to `token'"
   (save-excursion
     (goto-char (lp:marker token))
-    (forward-line 0)
-    (- (lp:marker token) (point))))
+    (- (point) (point-at-bol))))
 
 (defun lyqi:indent-line ()
   "Indent current line."
@@ -103,7 +102,7 @@ indented."
                (is-special (second special-args))
                (nb-special (first special-args))
                (next-arg-is-special (and is-special
-                                         (or (eql nb-special t)
+                                         (or (eql nb-special t) ;; all specials
                                              (> (- nb-special (length arg-forms)) 0)))))
           (cond (next-arg-is-special
                  (+ (lyqi:offset-from-bol sexp-paren) (* 2 lyqi:indent-level)))

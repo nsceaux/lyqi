@@ -544,10 +544,12 @@ Oterwise, return NIL."
                   (symbol (intern symbol-name))
                   (special-args (case symbol
                                   ;; TODO: define a method
-                                  ((define-markup-command define-music-function) '(2 t))
-                                  ((lambda let let* define define-public) '(1 t))
+                                  ((define-markup-command define-music-function defmacro) '(2 t))
+                                  ((lambda case let let* define define-public define-macro) '(1 t))
                                   ((begin) '(0 t))
-                                  (t '(nil nil)))))
+                                  (t (if (string-match "define.*" symbol-name)
+                                         '(1 t)
+                                         '(nil nil))))))
              (values parser-state
                      (list (make-instance (cond ((or (memq symbol lyqi:scheme-guile-macros)
                                                      (memq symbol lyqi:scheme-lily-macros))
@@ -585,7 +587,7 @@ Oterwise, return NIL."
     (lp:forward-match)))
 
 (defun lyqi:lex-verbatim (syntax &optional verbatim-regex)
-  (lyqi:with-forward-match ((or verbatim-regex ".[^ \t\r\n\"<>{}\\]*") marker size)
+  (lyqi:with-forward-match ((or verbatim-regex ".[^ \t\r\n\"%<>{}\\]*") marker size)
     (make-instance 'lyqi:verbatim-lexeme
                    :marker marker
                    :size size)))

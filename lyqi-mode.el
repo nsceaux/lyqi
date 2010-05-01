@@ -193,13 +193,16 @@ Otherwise, return NIL."
     ;; Undo
     ("u" undo)))
 
-(defmacro lyqi:define-string-insert-command (string)
+(defmacro lyqi:define-string-insert-command (string &optional with-space-around)
   (let ((fn-name (intern (format "insert-string-%s" string))))
     `(progn
        (defun ,fn-name ()
          ,(format "Insert string \"%s\"" string)
          (interactive)
-         (insert ,string))
+         ,(if with-space-around
+              `(lyqi:with-space-around
+                (insert ,string))
+              `(insert ,string)))
        (byte-compile ',fn-name)
        ',fn-name)))
 
@@ -225,6 +228,9 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
         if (stringp command)
         do (define-key lyqi:quick-insert-mode-map
              key (eval `(lyqi:define-string-insert-command ,command))) ;; urgh
+        else if (and (listp command) (eql (car command) 'space-around))
+        do (define-key lyqi:quick-insert-mode-map
+             key (eval `(lyqi:define-string-insert-command ,(cdr command) t)))
         else do (define-key lyqi:quick-insert-mode-map key command)))
 
 (eval-when (load)
@@ -234,11 +240,11 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
   (define-key lyqi:normal-mode-map "\C-c\C-l" 'lyqi:compile-ly)
   (define-key lyqi:normal-mode-map "\C-c\C-s" 'lyqi:open-pdf)
   (define-key lyqi:normal-mode-map [(control c) return] 'lyqi:open-midi)
-  (define-key lyqi:normal-mode-map "(" 'lyqi:insert-opening-delimiter)
-  (define-key lyqi:normal-mode-map "{" 'lyqi:insert-opening-delimiter)
+  ;(define-key lyqi:normal-mode-map "(" 'lyqi:insert-opening-delimiter)
+  ;(define-key lyqi:normal-mode-map "{" 'lyqi:insert-opening-delimiter)
   (define-key lyqi:normal-mode-map "<" 'lyqi:insert-opening-delimiter)
   (define-key lyqi:normal-mode-map "\"" 'lyqi:insert-delimiter)
-  (define-key lyqi:normal-mode-map ")" 'lyqi:insert-closing-delimiter)
+  ;(define-key lyqi:normal-mode-map ")" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map "}" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map ">" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map [tab] 'lyqi:complete-or-indent)
@@ -371,6 +377,9 @@ In quick insertion mode:
   (make-local-variable 'after-change-functions)
   (pushnew 'lp:before-parse-update before-change-functions)
   (setq after-change-functions '(lp:parse-update))
+  ;; avoid point adjustment
+  (make-local-variable 'global-disable-point-adjustment)
+  (setq global-disable-point-adjustment t)
   ;; buffer syntax
   (make-local-variable 'lp:*current-syntax*)
   (unless lp:*current-syntax*
