@@ -21,8 +21,12 @@ lyqi.el: $(EL_SOURCES)
 	-e 's/(provide .lp-[^)]*)//' -e 's/(require .lp-[^)]*)//' > $@
 	echo "(provide 'lyqi)" >> $@
 
-osx:
-	make lyqi.el
+EMACS ?= emacs
+
+lyqi.elc: lyqi.el
+	$(EMACS) -batch -u $$USER -f batch-byte-compile lyqi.el
+
+osx: lyqi.elc
 	cd EmacsPointAndClick && make all
 	cd MidiScript && make all
 

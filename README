@@ -1,1 +1,93 @@
 lyqi - LilyPond quick edit mode for GNU Emacs
+
+This is an Emacs mode for editing LilyPond files.  It focuses on fast
+note entry, using the computer keyboard.  There are two editing modes:
+
+- a normal mode, where the computer keyboard is used as usual,
+  typically for modifiying anything that are not notes (lyrics, score
+  structure, scheme, etc);
+
+- a note insertion mode, where most alphabetic keys are bound to
+  special note insertion/modification commands: insertion of notes,
+  modification of alteration, octave, duration, in one key stroke,
+  with instant audio feedback (only implemented on Mac OS X).
+
+It also features (rather basic) auto-completion of LilyPond built-in
+keywords and commands, shortcut from keyword to LilyPond manual,
+compilation and view commands.  LilyPond language and Scheme language
+are distinguished, so coloring takes care of both situations, and in
+theory indentation should also (even though it is currently, err,
+perfectible).
+
+/!\ \relative mode is not yet supported (because of audio feedback
+issues).  Generally speaking, I have only implemented features that I
+actually use.
+
+
+Installation
+============
+
+First, check that pre-requisites are installed and available in emacs
+load-path:
+- eieio <http://cedet.sourceforge.net/eieio.shtml>
+
+After having downloaded and unpacked the archive, run:
+  $ make lyqi.elc
+
+This will:
+- download the LilyPond index page from the website and generate the
+  help code (shortcuts to documentation);
+- generate the keyword/functions/commands code (for completion);
+- make a single lyqi.el file;
+- bytecompile it, using emacs found in PATH.  To use another one type
+  instead e.g.:
+  $ make lyqi.elc EMACS="/Applications/Aquamacs\ Emacs.app/Contents/MacOS/Aquamacs\ Emacs"
+
+Finally, change your .emacs to make use of lyqi:
+
+  ;; load lyqi
+  (load "/path/to/lyqi") ;; path to lyqi.elc file, without .elc extension
+  ;; automatically use lyqi mode when editing .ly and .ily files
+  (add-to-list 'auto-mode-alist '("\\.ly$" . lyqi-mode))
+  (add-to-list 'auto-mode-alist '("\\.ily$" . lyqi-mode))
+
+On Mac OS X, the following utilities are also available:
+
+- EmacsPointAndClick: enable point and click for emacs
+(TODO: explain emacsclient in PATH, association between textedit URLs
+and EmacsPointAndClick)
+
+- MidiScript: audio feedback when entering notes
+
+To build them, type:
+  $ make osx
+
+
+Customization
+=============
+
+(TODO: list options)
+
+In my .emacs:
+
+(custom-set-variables
+ '(lyqi:prefered-languages '(italiano nederlands))
+ '(lyqi:prefered-octave-mode 'absolute)
+ '(lyqi:keyboard-mapping 'azerty)
+ '(lyqi:custom-key-map '(("w" "\\trill")
+                         ("x" (space-around . "\\appoggiatura"))
+                         ("n" "~")
+                         ("," "(")
+                         (";" ")")
+                         (":" "[")
+                         ("=" "]")
+                         ("\C-m" lyqi:insert-pipe-and-return)
+                         ("$" lyqi:insert-pipe-and-return)))
+ '(lyqi:projects-language '(("~/src/lilypond" nederlands)
+                            ("~/Documents/LilyPond" italiano)
+                            ("~/Documents/LilyPond/Haendel/Opera/GiulioCesare" nederlands)))
+ '(lyqi:midi-backend 'osx)
+ '(lyqi:pdf-command "open")
+ '(lyqi:midi-command "open")
+ ;; ...
+)

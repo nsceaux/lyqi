@@ -1,7 +1,55 @@
-Scheme macro lexing (with nb of special args)
-\override ...
-Built-in music functions and variables
-auto completion
-music functions argument list
-help shortcut -> manual
-relative mode
+Editing functionalities
+=======================
+
+Show the signature of music functions or markup commands in
+mini-buffer when they are typed.
+
+Automatically remove the completion buffer.
+
+Improve the help shortcuts.
+
+Support relative mode, the problem being audio feedback, which if
+possible should be in the right octave.
+
+Add an option to the behavior of alteration modification commands, so
+that they deal with quater-tones, double alterations, etc.
+Currently, the parser supports quater-tones, but the commands used to
+change an alteration only use semi-tones.
+
+The parser probably should recognize more LilyPond constructs, like
+\override and \set, e.g. to ease completion.
+
+Improve indentation, which is quite broken in LilyPond embedded in
+Scheme embedded in LilyPond situations, but also in some other cases.
+
+
+Parser internals
+================
+
+Improve the parse list update.  Currently, when a modification is
+performed on a buffer, the modified line is re-parsed to update the
+parse lists.  If the parsing context at the beginning of the next line
+is modified (for instance, if double-quote is added, the context
+changes e.g. from "top-level" context to "string" context), the next
+line is also re-parsed, and so on.  As the parsing of the first
+modified line must occur exactly when the modification happens, this
+is done in an "after-change" function.  However, the execution time
+granted for an after change function is limited, and if a buffer
+modification involves the re-parsing of many lines, then this may
+fail.
+
+Instead:
+
+- the parsing of the first modified line shall be done in the
+  after-change function;
+
+- the possible parsing of the following lines may occur in the
+  after-change function while time permits, then the parsing of the
+  next lines should be postponed (to idle time?)
+
+
+The parser is also broken when cutting or yanking a large (or many not
+so large) region of text.
+
+But is the choice of implementing this parser a good one to begin
+with?
