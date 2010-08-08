@@ -30,4 +30,7 @@ osx: lyqi.elc
 	cd EmacsPointAndClick && make all
 	cd MidiScript && make all
 
-.PHONY: osx linux
+clean:
+	rm -f lilypond-index.html lyqi-help-index.el lyqi-words.el lyqi.el lyqi.elc
+
+.PHONY: osx linux clean

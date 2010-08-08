@@ -2,54 +2,57 @@
   '(accepts addlyrics alias alternative book bookpart change chordmode chords 
     consists context default defaultchild denies description drummode drums 
     figuremode figures grobdescriptions header key layout lyricmode lyrics 
-    lyricsto mark markup markuplines midi name new notemode objectid once 
-    override paper partial relative remove repeat rest revert score sequential 
-    set simultaneous skip tempo time times transpose type unset with))
+    lyricsto mark markup markuplines midi name new notemode once override paper 
+    partial relative remove repeat rest revert score sequential set 
+    simultaneous skip tempo time times transpose type unset with))
 
 (defconst lyqi:lilypond-music-variables
-  '(accent aikenHeads arpeggio arpeggioArrowDown arpeggioArrowUp 
-    arpeggioBracket arpeggioNormal arpeggioParenthesis 
+  '(accent aikenHeads aikenHeadsMinor arpeggio arpeggioArrowDown 
+    arpeggioArrowUp arpeggioBracket arpeggioNormal arpeggioParenthesis 
     arpeggioParenthesisDashed autoBeamOff autoBeamOn balloonLengthOff 
     balloonLengthOn bassFigureExtendersOff bassFigureExtendersOn 
     bassFigureStaffAlignmentDown bassFigureStaffAlignmentNeutral 
     bassFigureStaffAlignmentUp bracketCloseSymbol bracketOpenSymbol break 
-    cadenzaOff cadenzaOn coda compressFullBarRests cr cresc crescHairpin 
-    crescTextCresc deadNotesOff deadNotesOn decr defaultTimeSignature dim 
-    dimHairpin dimTextDecr dimTextDecresc dimTextDim dotsDown dotsNeutral 
-    dotsUp downbow downmordent downprall dynamicDown dynamicNeutral dynamicUp 
-    easyHeadsOff easyHeadsOn endcr endcresc enddecr enddim endincipit 
-    episemFinis episemInitium escapedBiggerSymbol escapedExclamationSymbol 
-    escapedParenthesisCloseSymbol escapedParenthesisOpenSymbol 
-    escapedSmallerSymbol espressivo expandFullBarRests f fermata fermataMarkup 
-    ff fff ffff fffff flageolet fp frenchChords fz germanChords glissando 
-    halfopen harmonic harmonicsOff hideNotes hideSplitTiedTabNotes 
-    hideStaffSwitch huge ignatzekExceptionMusic improvisationOff 
-    improvisationOn italianChords laissezVibrer large lheel lineprall 
-    longfermata ltoe marcato melisma melismaEnd mergeDifferentlyDottedOff 
-    mergeDifferentlyDottedOn mergeDifferentlyHeadedOff mergeDifferentlyHeadedOn 
-    mf mordent mp newSpacingSection noBeam noBreak normalsize 
-    numericTimeSignature oneVoice open p palmMuteOff parenthesisCloseSymbol 
-    parenthesisOpenSymbol partialJazzMusic phrasingSlurDashed 
-    phrasingSlurDotted phrasingSlurDown phrasingSlurHalfDashed 
-    phrasingSlurHalfSolid phrasingSlurNeutral phrasingSlurSolid phrasingSlurUp 
-    pipeSymbol portato pp ppp pppp ppppp prall pralldown prallmordent 
-    prallprall prallup predefinedFretboardsOff predefinedFretboardsOn repeatTie 
-    reverseturn rfz rheel rtoe sacredHarpHeads segno semiGermanChords 
-    setDefaultDurationToQuarter sf sff sfp sfz shiftOff shiftOn shiftOnn 
-    shiftOnnn shortfermata showSplitTiedTabNotes showStaffSwitch 
-    signumcongruentiae slurDashed slurDotted slurDown slurHalfDashed 
-    slurHalfSolid slurNeutral slurSolid slurUp small snappizzicato sostenutoOff 
-    sostenutoOn sp spp staccatissimo staccato startAcciaccaturaMusic 
-    startAppoggiaturaMusic startGraceMusic startGroup startStaff startTextSpan 
-    startTrillSpan stemDown stemNeutral stemUp stopAcciaccaturaMusic 
-    stopAppoggiaturaMusic stopGraceMusic stopGroup stopStaff stopTextSpan 
-    stopTrillSpan stopped sustainOff sustainOn tabFullNotation teeny tenuto 
-    textLengthOff textLengthOn textSpannerDown textSpannerNeutral textSpannerUp 
-    thumb tieDashed tieDotted tieDown tieHalfDashed tieHalfSolid tieNeutral 
-    tieSolid tieUp tildeSymbol tiny treCorde trill tupletDown tupletNeutral 
-    tupletUp turn unHideNotes unaCorda upbow upmordent upprall varcoda 
-    verylongfermata voiceFour voiceFourStyle voiceNeutralStyle voiceOne 
-    voiceOneStyle voiceThree voiceThreeStyle voiceTwo voiceTwoStyle xNotesOff))
+    breakDynamicSpan cadenzaOff cadenzaOn coda compressFullBarRests cr cresc 
+    crescHairpin crescTextCresc deadNotesOff deadNotesOn decr decresc 
+    defaultTimeSignature deprecatedcresc deprecateddim deprecatedendcresc 
+    deprecatedenddim dim dimHairpin dimTextDecr dimTextDecresc dimTextDim 
+    dotsDown dotsNeutral dotsUp downbow downmordent downprall dynamicDown 
+    dynamicNeutral dynamicUp easyHeadsOff easyHeadsOn endcr endcresc enddecr 
+    enddecresc enddim endincipit episemFinis episemInitium escapedBiggerSymbol 
+    escapedExclamationSymbol escapedParenthesisCloseSymbol 
+    escapedParenthesisOpenSymbol escapedSmallerSymbol espressivo 
+    expandFullBarRests f fermata fermataMarkup ff fff ffff fffff flageolet fp 
+    frenchChords fz germanChords glissando halfopen harmonic harmonicsOff 
+    hideNotes hideSplitTiedTabNotes hideStaffSwitch huge ignatzekExceptionMusic 
+    improvisationOff improvisationOn italianChords laissezVibrer large lheel 
+    lineprall longfermata ltoe marcato melisma melismaEnd 
+    mergeDifferentlyDottedOff mergeDifferentlyDottedOn 
+    mergeDifferentlyHeadedOff mergeDifferentlyHeadedOn mf mordent mp 
+    newSpacingSection noBeam noBreak normalsize numericTimeSignature oneVoice 
+    open p palmMuteOff parenthesisCloseSymbol parenthesisOpenSymbol 
+    partialJazzMusic phrasingSlurDashed phrasingSlurDotted phrasingSlurDown 
+    phrasingSlurHalfDashed phrasingSlurHalfSolid phrasingSlurNeutral 
+    phrasingSlurSolid phrasingSlurUp pipeSymbol portato pp ppp pppp ppppp prall 
+    pralldown prallmordent prallprall prallup predefinedFretboardsOff 
+    predefinedFretboardsOn repeatTie reverseturn rfz rheel rtoe sacredHarpHeads 
+    sacredHarpHeadsMinor segno semiGermanChords setDefaultDurationToQuarter sf 
+    sff sfp sfz shiftOff shiftOn shiftOnn shiftOnnn shortfermata 
+    showSplitTiedTabNotes showStaffSwitch signumcongruentiae slurDashed 
+    slurDotted slurDown slurHalfDashed slurHalfSolid slurNeutral slurSolid 
+    slurUp small snappizzicato sostenutoOff sostenutoOn southernHarmonyHeads 
+    southernHarmonyHeadsMinor sp spp staccatissimo staccato 
+    startAcciaccaturaMusic startAppoggiaturaMusic startGraceMusic startGroup 
+    startStaff startTextSpan startTrillSpan stemDown stemNeutral stemUp 
+    stopAcciaccaturaMusic stopAppoggiaturaMusic stopGraceMusic stopGroup 
+    stopStaff stopTextSpan stopTrillSpan stopped sustainOff sustainOn 
+    tabFullNotation teeny tenuto textLengthOff textLengthOn textSpannerDown 
+    textSpannerNeutral textSpannerUp thumb tieDashed tieDotted tieDown 
+    tieHalfDashed tieHalfSolid tieNeutral tieSolid tieUp tildeSymbol tiny 
+    treCorde trill tupletDown tupletNeutral tupletUp turn unHideNotes unaCorda 
+    upbow upmordent upprall varcoda verylongfermata voiceFour voiceFourStyle 
+    voiceNeutralStyle voiceOne voiceOneStyle voiceThree voiceThreeStyle 
+    voiceTwo voiceTwoStyle xNotesOff))
 
 (defconst lyqi:lilypond-music-functions
   '(acciaccatura addChordShape addInstrumentDefinition addQuote afterGrace 
@@ -59,12 +62,12 @@
     cueDuring deadNote defaultNoteHeads displayLilyMusic displayMusic 
     endSpanners featherDurations grace harmonicNote harmonicsOn 
     instrumentSwitch keepWithTag killCues label makeClusters musicMap 
-    noPageBreak noPageTurn octaveCheck ottava overrideBeamSettings 
-    overrideProperty pageBreak pageTurn palmMute palmMuteOn parallelMusic 
-    parenthesize partcombine phrasingSlurDashPattern pitchedTrill 
+    noPageBreak noPageTurn octaveCheck ottava overrideProperty 
+    overrideTimeSignatureSettings pageBreak pageTurn palmMute palmMuteOn 
+    parallelMusic parenthesize partcombine phrasingSlurDashPattern pitchedTrill 
     pointAndClickOff pointAndClickOn quoteDuring removeWithTag 
-    resetRelativeOctave revertBeamSettings rightHandFinger scaleDurations 
-    setBeatGrouping shiftDurations slurDashPattern spacingTweaks 
+    resetRelativeOctave revertTimeSignatureSettings rightHandFinger 
+    scaleDurations shiftDurations slurDashPattern spacingTweaks 
     storePredefinedDiagram styledNoteHeads tabChordRepetition tag 
     tieDashPattern tocItem transposedCueDuring transposition tweak 
     unfoldRepeats withMusicProperty xNote xNotesOn))
@@ -72,24 +75,24 @@
 (defconst lyqi:lilypond-markup-commands
   '(abs-fontsize arrow-head backslashed-digit beam bold box bracket caps 
     center-align center-column char circle column column-lines-list combine 
-    concat customTabClef dir-column doubleflat doublesharp draw-circle 
-    draw-line dynamic epsfile eyeglasses fill-line filled-box finger flat 
-    fontCaps fontsize fraction fret-diagram fret-diagram-terse 
-    fret-diagram-verbose fromproperty general-align halign harp-pedal hbracket 
-    hcenter-in hspace huge italic justified-lines-list justify justify-field 
-    justify-string large larger left-align left-brace left-column line lookup 
-    lower magnify markalphabet markletter medium musicglyph natural 
-    normal-size-sub normal-size-super normal-text normalsize note 
-    note-by-number null number on-the-fly override override-lines-list 
+    concat conditional-circle-markup customTabClef dir-column doubleflat 
+    doublesharp draw-circle draw-line dynamic epsfile eyeglasses fill-line 
+    filled-box finger flat fontCaps fontsize fraction fret-diagram 
+    fret-diagram-terse fret-diagram-verbose fromproperty general-align halign 
+    harp-pedal hbracket hcenter-in hspace huge italic justified-lines-list 
+    justify justify-field justify-string large larger left-align left-brace 
+    left-column line lookup lower magnify markalphabet markletter medium 
+    musicglyph natural normal-size-sub normal-size-super normal-text normalsize 
+    note note-by-number null number on-the-fly override override-lines-list 
     pad-around pad-markup pad-to-box pad-x page-ref parenthesize postscript 
     put-adjacent raise right-align right-brace right-column roman rotate 
     rounded-box sans score semiflat semisharp sesquiflat sesquisharp sharp 
     simple slashed-digit small smallCaps smaller stencil strut sub super 
     table-of-contents-list teeny text tied-lyric tiny translate 
     translate-scaled transparent triangle typewriter underline upright vcenter 
-    verbatim-file vspace whiteout with-color with-dimensions with-url wordwrap 
-    wordwrap-field wordwrap-internal-list wordwrap-lines-list wordwrap-string 
-    wordwrap-string-internal-list))
+    verbatim-file vspace whiteout with-color with-dimensions with-url 
+    woodwind-diagram wordwrap wordwrap-field wordwrap-internal-list 
+    wordwrap-lines-list wordwrap-string wordwrap-string-internal-list))
 
 (defconst lyqi:lilypond-markup-list-commands
   '(column-lines-markup-list justified-lines-markup-list 
@@ -102,47 +105,51 @@
     add-music add-music-fonts add-new-clef add-pango-fonts add-point 
     add-quotable add-score add-stroke-glyph add-stroke-straight add-text 
     adjust-slash-stencil alist->hash-table alist<? all-bar-numbers-visible 
-    all-repeat-counts-visible alterations-in-key ambitus::print 
-    annotate-spacing-spec annotate-y-interval assoc-get average backend-testing 
-    banter-chord-names bar-check bar-line::calc-break-visibility 
-    bar-line::calc-glyph-name bend::print binary-search boolean-or-symbol? 
+    all-repeat-counts-visible alterations-in-key ambitus::print angle-0-2pi 
+    angle-0-360 annotate-spacing-spec annotate-y-interval arrow-stencil-maker 
+    assoc-get average backend-testing banter-chord-names bar-check 
+    bar-line::calc-break-visibility bar-line::calc-glyph-name base-fraction 
+    beam-exceptions beat-structure bend::print binary-search boolean-or-symbol? 
     box-grob-stencil box-stencil bracketify-stencil cached-file-contents 
-    call-pure-function car< centered-stencil chain-assoc-get 
+    call-pure-function car< car<= centered-stencil chain-assoc-get 
     chain-grob-member-functions cheap-list? check-quant-callbacks 
     check-slope-callbacks circle-stencil clef::print-modern-tab-if-set 
     collect-book-music-for-book collect-bookpart-for-book collect-music-aux 
     collect-music-for-book collect-scores-for-book color? 
     column-lines-markup-list completize-formats construct-chord-elements 
-    context-change context-spec-music context-specification count-list 
-    create-glyph-flag cue-substitute debugf decode-byte-string 
-    default-auto-beam-check default-dynamic-absolute-volume default-flag 
-    default-instrument-equalizer descend-to-context determine-frets 
+    context-change context-spec-music context-specification coord-rotate 
+    coord-scale coord-translate count-list create-glyph-flag cue-substitute 
+    cyclic-base-value debugf decode-byte-string default-auto-beam-check 
+    default-dynamic-absolute-volume default-flag default-instrument-equalizer 
+    define-fonts degrees->radians descend-to-context determine-frets 
     determine-split-list dimension-arrows dir-basename display-lily-music 
     display-music display-scheme-music dots::calc-dot-count 
     dots::calc-staff-position dump-gc-protects dump-live-object-stats 
-    dynamic-text-spanner::before-line-breaking ellipse-stencil empty-music 
-    eps-file->stencil ergonomic-simple-format eval-carefully event-cause 
-    event-chord event-chord-notes event-chord-pitches 
+    dynamic-text-spanner::before-line-breaking ellipse-radius ellipse-stencil 
+    empty-music eps-file->stencil ergonomic-simple-format eval-carefully 
+    event-cause event-chord event-chord-notes event-chord-pitches 
     every-nth-bar-number-visible every-nth-repeat-count-visible 
     extract-named-music fancy-format filtered-map find-pitch-entry 
     fingering::calc-text first-assoc first-bar-number-invisible first-member 
-    flatten-alist font-name-style format-bass-figure format-mark-alphabet 
-    format-mark-barnumbers format-mark-box-alphabet format-mark-box-barnumbers 
-    format-mark-box-letters format-mark-box-numbers format-mark-circle-alphabet 
+    flatten-alist flatten-list font-name-split font-name-style 
+    format-bass-figure format-mark-alphabet format-mark-barnumbers 
+    format-mark-box-alphabet format-mark-box-barnumbers format-mark-box-letters 
+    format-mark-box-numbers format-mark-circle-alphabet 
     format-mark-circle-barnumbers format-mark-circle-letters 
     format-mark-circle-numbers format-mark-letters format-mark-numbers 
-    four-string-banjo fret-board::calc-stencil fret-letter-tablature-format 
-    fret-number-tablature-format fret-number-tablature-format-banjo 
-    fret-parse-terse-definition-string get-chord-shape 
+    four-string-banjo fraction->moment fret-board::calc-stencil 
+    fret-letter-tablature-format fret-number-tablature-format 
+    fret-number-tablature-format-banjo fret-parse-terse-definition-string 
+    function-chain get-chord-shape get-woodwind-key-list 
     glissando::calc-tab-extra-dy glyph-flag 
     grace-spacing::calc-shortest-duration grob-list? 
     grob::calc-property-by-copy grob::has-interface grob::is-live? gui-main 
     hairpin::calc-grow-direction hash-table->alist horizontal-slash-interval 
     ignatzek-chord-names interpret-markup-list interval-bound interval-center 
     interval-empty? interval-end interval-index interval-intersection 
-    interval-length interval-sane? interval-start interval-translate 
-    interval-union interval-widen is-absolute? jazz-chord-names 
-    justified-lines-markup-list key-signature-interface::alteration-position 
+    interval-length interval-sane? interval-start interval-union interval-widen 
+    is-absolute? jazz-chord-names justified-lines-markup-list 
+    key-signature-interface::alteration-position laissez-vibrer::print 
     layout-extract-page-properties layout-set-absolute-staff-size 
     layout-set-absolute-staff-size-in-module layout-set-staff-size lilypond-all 
     lilypond-main lilypond-version list-insert-separator list-join 
@@ -161,6 +168,11 @@
     ly:axis-group-interface::add-element 
     ly:axis-group-interface::adjacent-pure-heights 
     ly:axis-group-interface::calc-next-staff-spacing 
+    ly:axis-group-interface::calc-pure-next-staff-spacing 
+    ly:axis-group-interface::calc-pure-relevant-grobs 
+    ly:axis-group-interface::calc-pure-relevant-items 
+    ly:axis-group-interface::calc-pure-relevant-spanners 
+    ly:axis-group-interface::calc-pure-y-common 
     ly:axis-group-interface::calc-skylines 
     ly:axis-group-interface::calc-x-common 
     ly:axis-group-interface::calc-y-common 
@@ -169,14 +181,13 @@
     ly:axis-group-interface::width ly:balloon-interface::print 
     ly:bar-check-iterator::constructor ly:bar-line::calc-anchor 
     ly:bar-line::calc-bar-extent ly:bar-line::calc-bar-size ly:bar-line::print 
-    ly:beam-grouping ly:beam::calc-beaming ly:beam::calc-concaveness 
-    ly:beam::calc-cross-staff ly:beam::calc-direction 
-    ly:beam::calc-least-squares-positions ly:beam::calc-normal-stems 
-    ly:beam::calc-stem-shorten ly:beam::print ly:beam::quanting 
-    ly:beam::rest-collision-callback ly:beam::set-stem-lengths 
-    ly:beam::shift-region-to-valid ly:beam::slope-damping ly:beat-grouping 
-    ly:book-add-bookpart! ly:book-add-score! ly:book-process 
-    ly:book-process-to-systems ly:box? ly:bp ly:bracket 
+    ly:beam::calc-beaming ly:beam::calc-concaveness ly:beam::calc-cross-staff 
+    ly:beam::calc-direction ly:beam::calc-least-squares-positions 
+    ly:beam::calc-normal-stems ly:beam::calc-stem-shorten ly:beam::print 
+    ly:beam::quanting ly:beam::rest-collision-callback 
+    ly:beam::set-stem-lengths ly:beam::shift-region-to-valid 
+    ly:beam::slope-damping ly:book-add-bookpart! ly:book-add-score! 
+    ly:book-process ly:book-process-to-systems ly:box? ly:bp ly:bracket 
     ly:break-alignable-interface::self-align-callback 
     ly:break-aligned-interface::calc-average-anchor 
     ly:break-aligned-interface::calc-break-visibility 
@@ -187,18 +198,18 @@
     ly:breathing-sign::offset-callback ly:broadcast 
     ly:camel-case->lisp-identifier ly:chain-assoc-get 
     ly:change-iterator::constructor ly:chord-name::after-line-breaking 
-    ly:chord-tremolo-iterator::constructor ly:clear-anonymous-modules 
-    ly:clef::calc-glyph-name ly:clef::print ly:cluster-beacon::height 
-    ly:cluster::calc-cross-staff ly:cluster::print ly:cm ly:command-line-code 
-    ly:command-line-options ly:command-line-verbose? ly:connect-dispatchers 
-    ly:context-current-moment ly:context-event-source ly:context-events-below 
-    ly:context-find ly:context-grob-definition ly:context-id ly:context-name 
-    ly:context-now ly:context-parent ly:context-property 
-    ly:context-property-where-defined ly:context-pushpop-property 
-    ly:context-set-property! ly:context-specced-music-iterator::constructor 
-    ly:context-unset-property ly:context? ly:custos::print ly:default-scale 
-    ly:dimension? ly:dir? ly:dispatcher? ly:dot-column::calc-positioning-done 
-    ly:dots::print ly:duration->string ly:duration-dot-count ly:duration-factor 
+    ly:chord-tremolo-iterator::constructor ly:clef::calc-glyph-name 
+    ly:clef::print ly:cluster-beacon::height ly:cluster::calc-cross-staff 
+    ly:cluster::print ly:cm ly:command-line-code ly:command-line-options 
+    ly:command-line-verbose? ly:connect-dispatchers ly:context-current-moment 
+    ly:context-event-source ly:context-events-below ly:context-find 
+    ly:context-grob-definition ly:context-id ly:context-name ly:context-now 
+    ly:context-parent ly:context-property ly:context-property-where-defined 
+    ly:context-pushpop-property ly:context-set-property! 
+    ly:context-specced-music-iterator::constructor ly:context-unset-property 
+    ly:context? ly:custos::print ly:default-scale ly:dimension? ly:dir? 
+    ly:dispatcher? ly:dot-column::calc-positioning-done ly:dots::print 
+    ly:duration->string ly:duration-dot-count ly:duration-factor 
     ly:duration-length ly:duration-log ly:duration::less? ly:duration<? 
     ly:duration? ly:effective-prefix ly:enclosing-bracket::print 
     ly:enclosing-bracket::width ly:engraver-make-grob ly:error 
@@ -228,9 +239,8 @@
     ly:grob-set-property! ly:grob-staff-position ly:grob-suicide! 
     ly:grob-system ly:grob-translate-axis! ly:grob::stencil-height 
     ly:grob::stencil-width ly:grob::x-parent-positioning 
-    ly:grob::y-parent-positioning ly:grob? ly:grouping-rules ly:gulp-file 
-    ly:hairpin::print ly:hairpin::pure-height 
-    ly:hara-kiri-group-spanner::calc-skylines 
+    ly:grob::y-parent-positioning ly:grob? ly:gulp-file ly:hairpin::print 
+    ly:hairpin::pure-height ly:hara-kiri-group-spanner::calc-skylines 
     ly:hara-kiri-group-spanner::force-hara-kiri-callback 
     ly:hara-kiri-group-spanner::force-hara-kiri-in-y-parent-callback 
     ly:hara-kiri-group-spanner::pure-height 
@@ -281,15 +291,15 @@
     ly:music::duration-length-callback ly:music? 
     ly:note-collision-interface::calc-positioning-done 
     ly:note-column-accidentals ly:note-column-dot-column 
-    ly:note-head::calc-stem-attachment ly:note-head::print 
-    ly:note-head::stem-attachment ly:note-head::stem-x-shift ly:number->string 
-    ly:number-pair->string ly:optimal-breaking ly:option-usage ly:otf->cff 
-    ly:otf-font-glyph-info ly:otf-font-table-data ly:otf-font? 
-    ly:otf-glyph-count ly:otf-glyph-list ly:ottava-bracket::print 
-    ly:output-def-clone ly:output-def-lookup ly:output-def-parent 
-    ly:output-def-scope ly:output-def-set-variable! ly:output-def? 
-    ly:output-description ly:output-formats ly:outputter-close 
-    ly:outputter-dump-stencil ly:outputter-dump-string 
+    ly:note-head::calc-stem-attachment ly:note-head::include-ledger-line-height 
+    ly:note-head::print ly:note-head::stem-attachment 
+    ly:note-head::stem-x-shift ly:number->string ly:number-pair->string 
+    ly:optimal-breaking ly:option-usage ly:otf->cff ly:otf-font-glyph-info 
+    ly:otf-font-table-data ly:otf-font? ly:otf-glyph-count ly:otf-glyph-list 
+    ly:ottava-bracket::print ly:output-def-clone ly:output-def-lookup 
+    ly:output-def-parent ly:output-def-scope ly:output-def-set-variable! 
+    ly:output-def? ly:output-description ly:output-formats ly:outputter-close 
+    ly:outputter-dump-stencil ly:outputter-dump-string ly:outputter-module 
     ly:outputter-output-scheme ly:outputter-port ly:page-marker? 
     ly:page-turn-breaking ly:pango-font-physical-fonts ly:pango-font? 
     ly:paper-book-pages ly:paper-book-paper ly:paper-book-performances 
@@ -298,10 +308,11 @@
     ly:paper-get-font ly:paper-get-number ly:paper-outputscale 
     ly:paper-score-paper-systems ly:paper-system-minimum-distance 
     ly:paper-system? ly:parse-file ly:parser-clear-error ly:parser-clone 
-    ly:parser-define! ly:parser-error ly:parser-has-error? ly:parser-lexer 
-    ly:parser-lookup ly:parser-output-name ly:parser-parse-string 
-    ly:parser-set-note-names ly:parser-set-repetition-function 
-    ly:parser-set-repetition-symbol ly:part-combine-iterator::constructor 
+    ly:parser-define! ly:parser-error ly:parser-has-error? 
+    ly:parser-include-string ly:parser-lexer ly:parser-lookup 
+    ly:parser-output-name ly:parser-parse-string ly:parser-set-note-names 
+    ly:parser-set-repetition-function ly:parser-set-repetition-symbol 
+    ly:part-combine-iterator::constructor 
     ly:percent-repeat-item-interface::beat-slash 
     ly:percent-repeat-item-interface::double-percent 
     ly:percent-repeat-iterator::constructor ly:performance-write ly:pfb->pfa 
@@ -326,7 +337,6 @@
     ly:repeated-music::unfolded-music-length 
     ly:repeated-music::volta-music-length ly:reset-all-fonts 
     ly:rest-collision::calc-positioning-done 
-    ly:rest-collision::force-shift-callback 
     ly:rest-collision::force-shift-callback-rest ly:rest::calc-cross-staff 
     ly:rest::height ly:rest::print ly:rest::pure-height ly:rest::width 
     ly:rest::y-offset-callback ly:round-filled-box ly:round-filled-polygon 
@@ -384,8 +394,10 @@
     ly:stencil-in-color ly:stencil-rotate ly:stencil-rotate-absolute 
     ly:stencil-translate ly:stencil-translate-axis ly:stencil? 
     ly:stream-event::dump ly:stream-event::undump ly:stream-event? 
-    ly:string-percent-encode ly:string-substitute ly:sustain-pedal::print 
-    ly:system ly:system-font-load ly:system-start-delimiter::print 
+    ly:string-percent-encode ly:string-substitute ly:success 
+    ly:sustain-pedal::print ly:system ly:system-font-load 
+    ly:system-start-delimiter::print ly:system::calc-pure-height 
+    ly:system::calc-pure-relevant-grobs ly:system::height 
     ly:text-interface::interpret-string ly:text-interface::print 
     ly:tie-column::before-line-breaking ly:tie-column::calc-positioning-done 
     ly:tie::calc-control-points ly:tie::calc-direction ly:tie::print 
@@ -405,55 +417,58 @@
     make-accidental-rule make-apply-context make-articulation 
     make-autochange-music make-beam-rule-time-signature-set 
     make-century-schoolbook-tree make-circle-stencil make-clef-set 
-    make-column-lines-markup-list make-duration-of-length make-ellipse-stencil 
-    make-event-chord make-filled-box-stencil make-grace-music 
-    make-grob-property-override make-grob-property-revert 
-    make-grob-property-set make-justified-lines-markup-list make-line-stencil 
-    make-lyric-event make-mark-set make-multi-measure-rest make-music 
-    make-non-relative-music make-ottava-set make-oval-stencil 
-    make-override-lines-markup-list make-pango-font-tree 
-    make-part-combine-music make-property-set make-property-unset make-repeat 
-    make-repeated-music make-safe-lilypond-module make-sequential-music 
+    make-column-lines-markup-list make-connected-shape-stencil 
+    make-duration-of-length make-ellipse-stencil make-event-chord 
+    make-filled-box-stencil make-grace-music make-grob-property-override 
+    make-grob-property-revert make-grob-property-set 
+    make-justified-lines-markup-list make-line-stencil make-lyric-event 
+    make-mark-set make-multi-measure-rest make-music make-non-relative-music 
+    make-ottava-set make-oval-stencil make-override-lines-markup-list 
+    make-pango-font-tree make-part-combine-music make-partial-ellipse-stencil 
+    make-property-set make-property-unset make-repeat make-repeated-music 
+    make-safe-lilypond-module make-sequential-music make-setting 
     make-simultaneous-music make-skip-music make-span-event make-stencil-boxer 
     make-stencil-circler make-time-signature-set make-type-checker 
     make-voice-props-revert make-voice-props-set 
     make-wordwrap-internal-markup-list make-wordwrap-lines-markup-list 
     make-wordwrap-string-internal-markup-list map-markup-command-list 
-    marked-up-headfoot marked-up-title markup-command-keyword 
+    map-selected-alist-keys marked-up-headfoot marked-up-title 
     markup-command-list? markup-command-signature markup-command-signature-ref 
-    markup-command-signature-set! markup-list? markup-signature-to-keyword 
-    markup? mensural-flag midi-program mmrest-of-length modern-straight-flag 
-    modified-font-metric-font-scaling modulo-bar-number-visible moment-min 
-    moment-pair? moment<=? multi-measure-rest music->make-music music-clone 
-    music-filter music-function music-has-type music-is-of-type? music-map 
-    music-separator? myd neo-modern-accidental-rule no-flag normal-flag 
-    note-head::brew-ez-stencil note-head::calc-duration-log 
+    markup-command-signature-set! markup-list? markup? mensural-flag 
+    midi-program mmrest-of-length modern-straight-flag 
+    modified-font-metric-font-scaling modulo-bar-number-visible 
+    moment->fraction moment-min moment-pair? moment<=? multi-measure-rest 
+    music->make-music music-clone music-filter music-function music-has-type 
+    music-is-of-type? music-map music-separator? myd neo-modern-accidental-rule 
+    no-flag normal-flag note-head::brew-ez-stencil note-head::calc-duration-log 
     note-head::calc-glyph-name note-name->markup note-to-cluster 
     notes-to-clusters number-or-grob? number-or-string? number-pair? 
     object-type object-type-name offset-add offset-flip-y offset-fret 
     offset-scale old-relative-not-used-message old-straight-flag ordered-cons 
-    output-scopes outputproperty-compatibility oval-stencil 
-    override-beam-setting override-head-style override-lines-markup-list 
-    override-property-setting parentheses-item::calc-angled-bracket-stencils 
+    output-scopes outputproperty-compatibility oval-stencil override-head-style 
+    override-lines-markup-list override-time-signature-setting 
+    pango-pf-file-name pango-pf-font-name pango-pf-fontindex 
+    parentheses-item::calc-angled-bracket-stencils 
     parentheses-item::calc-parenthesis-stencils 
     parentheses-item::calc-tabstaff-parenthesis-stencils parenthesize-stencil 
     parenthesize-tab-note-head parse-string-result parse-terse-string 
-    percussion? pitch-of-note postprocess-output postscript->pdf 
-    postscript->png prepend-alist-chain print print-book-with-defaults 
-    print-book-with-defaults-as-systems print-circled-text-callback 
+    percussion? pitch-of-note polar->rectangular postprocess-output 
+    postscript->pdf postscript->png prepend-alist-chain print 
+    print-book-with-defaults print-book-with-defaults-as-systems 
+    print-circled-text-callback print-keys print-keys-verbose 
     property-operation pure-relevant? quote-substitute read-lily-expression 
     recording-group-emulate relevant-book-systems relevant-dump-systems 
     remove-grace-property remove-stencil-warnings repeat 
     repeat-tie::handle-tab-note-head repetition-chord retrieve-glyph-flag 
-    revert-beam-setting revert-head-style rgb-color rounded-box-stencil 
-    sanitize-command-option scale-layout scheme? scm->string 
-    score-override-beam-setting scorify-music script-interface::calc-x-offset 
-    search-executable search-gs select-head-glyph sequential-music 
-    sequential-music-to-chord-exceptions set-accidental-style 
-    set-accidentals-properties set-bar-number-visibility set-default-paper-size 
-    set-global-staff-size set-mus-properties! set-octavation 
-    set-output-property set-paper-dimension-variables set-paper-size 
-    set-time-signature shift-duration-log shift-one-duration-log 
+    reverse-interval revert-head-style revert-time-signature-setting rgb-color 
+    rounded-box-stencil sanitize-command-option scale-layout scheme? 
+    scm->string score-override-time-signature-setting scorify-music 
+    script-interface::calc-x-offset search-executable search-gs 
+    select-head-glyph sequential-music sequential-music-to-chord-exceptions 
+    set-accidental-style set-accidentals-properties set-bar-number-visibility 
+    set-default-paper-size set-global-staff-size set-mus-properties! 
+    set-octavation set-output-property set-paper-dimension-variables 
+    set-paper-size set-time-signature shift-duration-log shift-one-duration-log 
     shift-right-at-line-begin simultaneous-music skip->rest skip-music 
     skip-of-length slur::draw-tab-slur smart-bar-check space-lines 
     split-list-by-separator stack-lines stack-stencil-line stack-stencils 
@@ -461,14 +476,15 @@
     stencil-with-color straight-flag string-encode-integer string-endswith 
     string-number::calc-text string-or-pair? string-or-symbol? 
     string-regexp-substitute string-startswith stroke-finger::calc-text 
-    style-note-heads symbol-key<? symbol<? symmetric-interval 
-    system-start-text::calc-x-offset system-start-text::calc-y-offset 
-    system-start-text::print system-with-env tab-note-head::calc-glyph-name 
-    tab-note-head::whiteout-if-style-set tablature-position-on-lines 
-    tabvoice::draw-double-stem-for-half-notes teaching-accidental-rule tempo 
-    tempoText tie::handle-tab-note-head time-scaled-music transpose-music 
-    tuplet-number::append-note-wrapper tuplet-number::calc-denominator-text 
-    tuplet-number::calc-fraction-text tuplet-number::fraction-with-notes 
+    style-note-heads symbol-concatenate symbol-key<? symbol<? 
+    symmetric-interval system-start-text::calc-x-offset 
+    system-start-text::calc-y-offset system-start-text::print system-with-env 
+    tab-note-head::calc-glyph-name tab-note-head::whiteout-if-style-set 
+    tablature-position-on-lines tabvoice::draw-double-stem-for-half-notes 
+    teaching-accidental-rule tempo tempoText tie::handle-tab-note-head 
+    time-scaled-music transpose-music tuplet-number::append-note-wrapper 
+    tuplet-number::calc-denominator-text tuplet-number::calc-fraction-text 
+    tuplet-number::fraction-with-notes 
     tuplet-number::non-default-fraction-with-notes 
     tuplet-number::non-default-tuplet-denominator-text 
     tuplet-number::non-default-tuplet-fraction-text type-name 
@@ -485,14 +501,15 @@
 
 (defconst lyqi:scheme-lily-variables
   '(CENTER DOS DOUBLE-FLAT DOUBLE-FLAT-QTS DOUBLE-SHARP DOUBLE-SHARP-QTS DOWN 
-    FLAT FLAT-QTS LEFT NATURAL NATURAL-QTS PLATFORM RIGHT SEMI-FLAT 
-    SEMI-FLAT-QTS SEMI-SHARP SEMI-SHARP-QTS SEMI-TONE SEMI-TONE-QTS SHARP 
-    SHARP-QTS START STOP THREE-Q-FLAT THREE-Q-FLAT-QTS THREE-Q-SHARP 
-    THREE-Q-SHARP-QTS UP X Y ZERO-MOMENT absolute-volume-alist 
-    all-backend-properties all-grob-descriptions all-internal-grob-properties 
-    all-internal-translation-properties all-invisible all-music-font-encodings 
-    all-music-properties all-text-font-encodings all-translation-properties 
-    all-user-grob-properties all-user-translation-properties all-visible 
+    FLAT FLAT-QTS LEFT NATURAL NATURAL-QTS PI PI-OVER-180 PI-OVER-TWO PLATFORM 
+    RIGHT SEMI-FLAT SEMI-FLAT-QTS SEMI-SHARP SEMI-SHARP-QTS SEMI-TONE 
+    SEMI-TONE-QTS SHARP SHARP-QTS START STOP THREE-PI-OVER-TWO THREE-Q-FLAT 
+    THREE-Q-FLAT-QTS THREE-Q-SHARP THREE-Q-SHARP-QTS TWO-PI UP X Y ZERO-MOMENT 
+    absolute-volume-alist all-backend-properties all-grob-descriptions 
+    all-internal-grob-properties all-internal-translation-properties 
+    all-invisible all-music-font-encodings all-music-properties 
+    all-text-font-encodings all-translation-properties all-user-grob-properties 
+    all-user-translation-properties all-visible 
     alteration-default-glyph-name-alist alteration-hufnagel-glyph-name-alist 
     alteration-medicaea-glyph-name-alist alteration-mensural-glyph-name-alist 
     alteration-vaticana-glyph-name-alist banjo-c-tuning banjo-modal-tuning 
@@ -501,21 +518,24 @@
     bass-six-string-tuning bass-tuning begin-of-line-invisible 
     begin-of-line-visible black blue cancellation-glyph-name-alist 
     center-invisible center-visible current-outfile-name cyan darkblue darkcyan 
-    darkgreen darkmagenta darkred darkyellow default-beam-settings 
-    default-chord-modifier-list default-melisma-properties default-script-alist 
-    dynamic-default-volume empty-interval empty-markup empty-stencil 
-    end-of-line-invisible end-of-line-visible feta-design-size-mapping green 
-    grey guitar-asus4-tuning guitar-dadgad-tuning guitar-drop-d-tuning 
-    guitar-lute-tuning guitar-open-d-tuning guitar-open-g-tuning 
-    guitar-seven-string-tuning guitar-tuning instrument-equalizer-alist 
-    latin1-coding-vector lily-unit->bigpoint-factor lily-unit->mm-factor 
-    magenta makam-alteration-glyph-name-alist mandolin-tuning 
+    darkgreen darkmagenta darkred darkyellow default-chord-modifier-list 
+    default-melisma-properties default-script-alist 
+    default-time-signature-settings dynamic-default-volume empty-interval 
+    empty-markup empty-stencil end-of-line-invisible end-of-line-visible 
+    feta-design-size-mapping green grey guile-predicates guitar-asus4-tuning 
+    guitar-dadgad-tuning guitar-drop-d-tuning guitar-lute-tuning 
+    guitar-open-d-tuning guitar-open-g-tuning guitar-seven-string-tuning 
+    guitar-tuning instrument-equalizer-alist latin1-coding-vector 
+    lily-unit->bigpoint-factor lily-unit->mm-factor 
+    lilypond-exported-predicates lilypond-scheme-predicates magenta 
+    makam-alteration-glyph-name-alist mandolin-tuning 
     markup-functions-by-category markup-functions-properties 
     markup-list-functions music-descriptions music-name-to-property-table 
-    paper-alist parser point-stencil red spanbar-begin-of-line-invisible 
+    paper-alist parser point-stencil r5rs-primary-predicates 
+    r5rs-secondary-predicates red spanbar-begin-of-line-invisible 
     standard-alteration-glyph-name-alist supported-clefs 
     toplevel-music-functions ukulele-baritone-tuning ukulele-d-tuning 
-    ukulele-tenor-tuning ukulele-tuning white yellow))
+    ukulele-tenor-tuning ukulele-tuning white woodwind-instrument-list yellow))
 
 (defconst lyqi:scheme-guile-procedures
   '($abs $acos $acosh $asin $asinh $atan $atan2 $atanh $cos $cosh $exp $expt 
