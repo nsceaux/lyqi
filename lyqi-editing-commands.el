@@ -31,7 +31,7 @@
 ;;; - change last duration dot number
 ;;;
 (defun lyqi:find-durations-backward (syntax position)
-  "Find one duration (explicit and explicit) plus one explicit duration, backwards.
+  "Find one duration (implicit or explicit) plus one explicit duration, backwards.
 Return two values."
   (loop with duration1 = nil
         for (form current-line rest-forms) = (lp:form-before-point syntax position)
@@ -270,10 +270,14 @@ searching as soon as a rest, skip, etc is found."
                                                                (t octave0))))
                        (make-instance 'lyqi:note-mixin
                                       :pitch pitch
-                                      :alteration (aref lyqi:*alterations* pitch)))))
+                                      :alteration (aref lyqi:*alterations* pitch))))
+         (previous-duration
+          (multiple-value-bind (current-duration previous-duration)
+              (lyqi:find-durations-backward syntax (point))
+            current-duration)))
     (combine-after-change-calls
       (lyqi:with-space-around
-       (lyqi:insert-note syntax new-note t (not previous-note))))))
+       (lyqi:insert-note syntax new-note t (not previous-duration))))))
 
 (defun lyqi:insert-note-c ()
   "Insert a c/do note at point"
