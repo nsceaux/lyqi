@@ -22,15 +22,16 @@
   buffer (overrides `lyqi:global-master-file').")
 
 (defun lyqi:master-file ()
-  (or lyqi:buffer-master-file
-      lyqi:global-master-file
-      (let ((pathname (buffer-file-name)))
-        (and (string-equal (file-name-extension pathname) "ly")
-             pathname))))
+  (let ((pathname (buffer-file-name)))
+    (or (and (string-equal (file-name-extension pathname) "ly")
+             pathname)
+        lyqi:buffer-master-file
+        lyqi:global-master-file)))
 
 (defun lyqi:defined-master-file ()
-  (or lyqi:buffer-master-file
-      lyqi:global-master-file))
+  (and (not (string-equal (file-name-extension  (buffer-file-name)) "ly"))
+       (or lyqi:buffer-master-file
+           lyqi:global-master-file)))
 
 (defun lyqi:set-buffer-master-file (filename)
   (interactive "fBuffer master file:")
