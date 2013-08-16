@@ -544,8 +544,8 @@ Oterwise, return NIL."
                   (symbol (intern symbol-name))
                   (special-args (case symbol
                                   ;; TODO: define a method
-                                  ((define-markup-command define-music-function defmacro) '(2 t))
-                                  ((lambda case let let* define define-public define-macro) '(1 t))
+                                  ((define-markup-command define-music-function defmacro defmacro*-public) '(2 t))
+                                  ((lambda case let let* parameterize define define-public define-macro) '(1 t))
                                   ((begin) '(0 t))
                                   (t (if (string-match "define.*" symbol-name)
                                          '(1 t)
