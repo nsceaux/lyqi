@@ -247,7 +247,8 @@ on the value of `lyqi:keyboard-mapping'), and bindings from
   ;(define-key lyqi:normal-mode-map ")" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map "}" 'lyqi:insert-closing-delimiter)
   (define-key lyqi:normal-mode-map ">" 'lyqi:insert-closing-delimiter)
-  (define-key lyqi:normal-mode-map [tab] 'lyqi:complete-or-indent)
+  (define-key lyqi:normal-mode-map [tab] 'lyqi:indent-line)
+  (define-key lyqi:normal-mode-map [(control tab)] 'lyqi:complete-word)
   (lyqi:force-mode-map-definition))
 
 ;;;
