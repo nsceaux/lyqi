@@ -65,7 +65,11 @@ consider that `note' is relative to `ref-note'."
 (defclass lyqi:osx-midi-player (lyqi:midi-player) ())
 
 (defmethod lyqi:player-play-midi-note ((player lyqi:osx-midi-player) midi-note)
-  (do-applescript (format "tell application \"MidiScript\" to playnote %d" midi-note)))
+  ;(do-applescript (format "ignoring application responses tell application \"MidiScript\" to playnote %d" midi-note))
+  (start-process-shell-command
+   "midiscript" nil
+   (format "osascript -e 'tell application \"MidiScript\" to playnote %d'"
+           midi-note)))
 
 ;;;
 ;;; Alsa (Linux): lyqikbd
