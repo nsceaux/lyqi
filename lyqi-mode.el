@@ -117,12 +117,12 @@ Otherwise, return NIL."
 
 (defun lyqi:enter-quick-insert-command ()
   (interactive)
-  (insert-char last-command-char 1)
+  (insert-char last-command-event 1)
   (use-local-map lyqi:quick-insert-command-mode-map))
 
 (defun lyqi:quit-quick-insert-command ()
   (interactive)
-  (insert-char last-command-char 1)
+  (insert-char last-command-event 1)
   (use-local-map lyqi:quick-insert-mode-map))
 
 (defconst lyqi:+azerty-mode-map+
