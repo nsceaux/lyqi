@@ -63,7 +63,7 @@
           (t ;; expand abbrev
            (choose-completion-string completion
                                      (current-buffer)
-                                     (1- (slot-value this 'start-position)))
+                                     (list (slot-value this 'start-position)))
            t))))
 
 (defun lyqi:complete-word ()
