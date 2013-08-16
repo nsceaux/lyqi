@@ -470,7 +470,7 @@ whereas in a Scheme block, delimiters are parens."
   (interactive "p")
   (multiple-value-bind (form line rest-forms)
       (lp:form-before-point (lp:current-syntax) (point))
-    (let ((delim last-command-char))
+    (let ((delim last-command-event))
       (if (and form (object-of-class-p form 'lyqi:scheme-lexeme))
           ;; scheme context
           (if (= delim ?\()
@@ -491,7 +491,7 @@ whereas in a Scheme block, delimiters are parens."
 (defun lyqi:insert-closing-delimiter (&optional n)
   "Insert a closing delimiter, unless char after point is the same closing delimiter."
   (interactive "p")
-  (let ((delim last-command-char))
+  (let ((delim last-command-event))
     (if (and (not (eolp))
              (= delim (char-after (point))))
         (forward-char)
@@ -500,7 +500,7 @@ whereas in a Scheme block, delimiters are parens."
 (defun lyqi:insert-delimiter (&optional n)
   "Insert a delimiter twice, unless char after point is this delimiter."
   (interactive "p")
-  (let ((delim last-command-char))
+  (let ((delim last-command-event))
     (if (and (not (eolp))
              (= delim (char-after (point))))
         (forward-char)
