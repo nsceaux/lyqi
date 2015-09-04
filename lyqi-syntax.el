@@ -308,7 +308,7 @@ Oterwise, return NIL."
                                                                   :size size))
                               (not (eolp)))))))))
         ;; a backslashed keyword, command or variable
-        ((looking-at "[_^-]?\\\\\\([a-zA-Z-]+\\)")
+        ((looking-at "[_^-]?\\\\\\([a-zA-Z-]+\\|[<>!]\\)")
          (lyqi:with-forward-match (marker size)
            (let ((sym (intern (match-string-no-properties 1))))
              (values parser-state
@@ -542,14 +542,19 @@ Oterwise, return NIL."
          (lyqi:with-forward-match ("[^ \t\r\n()]+" marker size)
            (let* ((symbol-name (match-string-no-properties 0))
                   (symbol (intern symbol-name))
-                  (special-args (case symbol
-                                  ;; TODO: define a method
-                                  ((define-markup-command define-music-function defmacro defmacro*-public) '(2 t))
-                                  ((lambda case let let* parameterize define define-public define-macro) '(1 t))
-                                  ((begin) '(0 t))
-                                  (t (if (string-match "define.*" symbol-name)
-                                         '(1 t)
-                                         '(nil nil))))))
+                  (special-args
+                   (case symbol
+                     ;; TODO: define a method
+                     ((define-markup-command define-music-function
+                        defmacro defmacro*-public defmacro-public)
+                      '(2 t))
+                     ((lambda case let let* parameterize define
+                        define-public define-macro)
+                      '(1 t))
+                     ((begin) '(0 t))
+                     (t (if (string-match "define.*" symbol-name)
+                            '(1 t)
+                            '(nil nil))))))
              (values parser-state
                      (list (make-instance (cond ((or (memq symbol lyqi:scheme-guile-macros)
                                                      (memq symbol lyqi:scheme-lily-macros))
