@@ -5,16 +5,14 @@
 
 @implementation MidiController
 
-- (void)playPitch:(int)pitch withLength:(int)length
-{
+- (id)init {
+  
   // some MIDI constants:
   enum {
     kMidiMessage_ControlChange  = 0xB,
     kMidiMessage_ProgramChange  = 0xC,
     kMidiMessage_BankMSBControl = 0,
-    kMidiMessage_BankLSBControl = 32,
-    kMidiMessage_NoteOn         = 0x9,
-    kMidiMessage_NoteOff        = 0x8
+    kMidiMessage_BankLSBControl = 32
   };
 
   // Create the graph
@@ -51,7 +49,6 @@
   AUGraphOpen (graph_);
   AUGraphInitialize (graph_);
   // Turn off the reverb on the synth
-  AudioUnit synthUnit;
   AUGraphNodeInfo (graph_, synthNode_, NULL, &synthUnit);
   UInt32 usesReverb = 0;
   AudioUnitSetProperty (synthUnit,
@@ -67,13 +64,25 @@
 
   AUGraphNodeInfo (graph_, synthNode_, NULL, &synthUnit);
   AUGraphStart (graph_);
-  
-  UInt32 onVelocity = 127;
+  return self;
+}
+
+- (void)playPitch:(int)pitch withLength:(int)length withVelocity:(int)velocity
+{
+  // some MIDI constants:
+  enum {
+    kMidiMessage_NoteOn         = 0x9,
+    kMidiMessage_NoteOff        = 0x8
+  };
+
   UInt32 noteOnCommand = kMidiMessage_NoteOn << 4 | midiChannel_;
   UInt32 noteOffCommand = kMidiMessage_NoteOff << 4 | midiChannel_;
-  MusicDeviceMIDIEvent(synthUnit, noteOnCommand, pitch, onVelocity, 0);
+  MusicDeviceMIDIEvent(synthUnit, noteOnCommand, pitch, velocity, 0);
   usleep (length * 1000);
   MusicDeviceMIDIEvent(synthUnit, noteOffCommand, pitch, 0, 0);
+}
+
+- (void)dealloc {
   AUGraphStop (graph_);
   DisposeAUGraph (graph_);
 }

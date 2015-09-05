@@ -11,7 +11,9 @@
   AUNode outputNode_;
   AUGraph graph_;
   UInt8 midiChannel_;
+  AudioUnit synthUnit;
 }
-
-- (void) playPitch:(int)pitch withLength:(int)length;
+- (id) init;
+- (void) dealloc;
+- (void) playPitch:(int)pitch withLength:(int)length withVelocity:(int)velocity;
 @end

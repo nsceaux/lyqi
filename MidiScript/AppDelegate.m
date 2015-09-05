@@ -4,6 +4,6 @@
 @implementation AppDelegate
 - (void) playNote: (int) pitch
 {
-  [midiController playPitch:pitch withLength:200];
+  [midiController playPitch:pitch withLength:200 withVelocity:80];
 }
 @end

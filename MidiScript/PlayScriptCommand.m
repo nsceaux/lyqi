@@ -14,7 +14,6 @@
 - (id) performDefaultImplementation
 {
   int pitch = [[self directParameter] intValue];
-  printf ("play pitch: %d\n", pitch);
   [[NSApp delegate] playNote:pitch];
   return nil;
 }
