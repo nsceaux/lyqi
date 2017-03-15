@@ -1,0 +1,137 @@
+# This file is part of lyqi.
+
+# lyqi is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# lyqi is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with lyqi.  If not, see <http://www.gnu.org/licenses/>.
+
+INSTALL=install
+
+PACKAGE = @PACKAGE_NAME@
+VERSION = @PACKAGE_VERSION@
+srcdir = @srcdir@
+AWK=@AWK@
+EMACS ?= emacs
+
+lilypond_version = @lilypond_version@
+
+distdir = $(PACKAGE)-$(VERSION)
+
+# the order here is the order in lyqi.el. Symbols should be defined
+# when they are used
+IN_SOURCES = package_header.el.in \
+             customization.el  completion.el			\
+             lp-base.el lyqi-syntax.el				\
+             hyphenate.el.in					\
+             lyqi-compile-commands.el				\
+             lyqi-editing-commands.el				\
+             lyqi-indent.el					\
+             lyqi-help-index.el lyqi-help.el lyqi-midi.el	\
+             lyqi-mode.el lyqi-pitchnames.el			\
+             lyqi-templates.el
+
+EL_SOURCES = $(subst .in,,$(IN_SOURCES))
+
+distfiles := ${IN_SOURCES} \
+	configure \
+	configure.ac \
+	aclocal.m4 \
+	lyqi-words_2.12.el \
+	lyqi-words_2.14.el \
+	COPYING \
+	README \
+	TODO \
+	Makefile.in \
+	make-words.ly \
+	make-help-index.pl \
+	docs \
+	docs/html \
+	docs/texinfo \
+	docs/html/lyqi_manual.html \
+	docs/texinfo/lyqi-manual.texi \
+	docs/texinfo/Makefile \
+	debian \
+	debian/changelog \
+	debian/compat \
+	debian/control \
+	debian/copyright \
+	debian/files \
+	debian/lyqi-mode.dirs \
+	debian/lyqi-mode.doc-base \
+	debian/lyqi-mode.emacsen-install \
+	debian/lyqi-mode.emacsen-remove \
+	debian/lyqi-mode.emacsen-startup \
+	debian/lyqi-mode.substvars \
+	debian/lyqi-mode.postrm \
+	debian/rules \
+	debian/source \
+	debian/source/format
+
+LILYPOND_ORG_DOC_URL = http://lilypond.org/doc/v2.13/Documentation/notation
+
+all: lyqi.elc
+
+lyqi.elc: lyqi.el
+	$(EMACS) -batch -u $$USER -l set-compilation-path.el -f batch-byte-compile lyqi.el
+
+lilypond-index.html:
+	wget -O $@ $(LILYPOND_ORG_DOC_URL)/lilypond-index.html
+
+lyqi-help-index.el: lilypond-index.html
+	perl make-help-index.pl lilypond-index.html $(LILYPOND_ORG_DOC_URL) $@
+
+lilypond-words.el:
+	ln lyqi-words_$(lilypond_version).el lilypond-words.el
+
+# we make lyqi.el concatenating all the source files
+lyqi.el: $(EL_SOURCES)
+	echo -n > $@
+# Concatenate each source file removing the header (GPL license) until the
+# first line not matching "^;;"
+	for file in $(EL_SOURCES); do \
+	cat $$file|$(AWK) 'BEGIN {header=1};!/^;;/ { header=0 }; { if (header==0) print }' >> $@; \
+	done
+	sed -i -e 's/(provide .lyqi-[^)]*)//' -e 's/(require .lyqi-[^)]*)//' \
+	-e 's/(provide .lp-[^)]*)//' -e 's/(require .lp-[^)]*)//' $@
+	echo "(provide 'lyqi)" >> $@
+
+osx: lyqi.elc
+	cd EmacsPointAndClick && make all
+	cd MidiScript && make all
+
+install-source: lyqi.el lilypond-words.el
+	$(INSTALL) -m644 -o root -g root -d $(DESTDIR)/usr/share/emacs/site-lisp/lyqi-mode
+	$(INSTALL) -m644 -o root -g root -D lyqi.el $(DESTDIR)/usr/share/emacs/site-lisp/lyqi-mode/lyqi-mode.el
+	$(INSTALL) -m644 -o root -g root lilypond-words.el $(DESTDIR)/usr/share/emacs/site-lisp/lyqi-mode
+
+$(distdir): $(distfiles)
+	if test -d $(distdir); then rm -rf $(distdir); fi
+	mkdir $(distdir)
+	cd $(distdir); \
+	for file in $(distfiles); do \
+		if [ -f ../$$file ]; then \
+			ln ../$$file $$file; \
+		else \
+			mkdir -p $$file; \
+		fi; \
+	done
+
+dist: $(distdir)
+	tar -czf ../lyqi_$(VERSION).tar.gz --atime-preserve --owner=0 --group=0 $(distdir)
+
+clean:
+	rm -f lilypond-index.html lyqi-help-index.el lyqi.el lyqi.elc
+
+distclean: clean
+	rm -f *~
+	rm -f lilypond-words.el
+
+.PHONY: osx linux dist clean distclean install-source install-bytecode
